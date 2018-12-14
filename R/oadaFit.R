@@ -4,7 +4,7 @@
 
 
 #Define class of object for the fitted additive model
-setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="nbdaData",optimisation="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",SLdom="logical"));
+setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="nbdaData",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",SLdom="logical"));
 
 
 #Method for initializing addFit object- including model fitting
@@ -71,10 +71,10 @@ setMethod("initialize",
 
               #Get hessian matrix and use it to get standard errors
               se<-NaN
-              hessianMat<-matrix(NA)
+              hessianMat<-hessianNun<-matrix(NA)
 
               if(is.character(nbdadata)){
-                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
+                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat,se=se, type=type,SLdom=F,...)
               }else{
                 callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
 
@@ -96,7 +96,6 @@ setMethod("initialize",
                 #if(is.null(interval)) interval<-c(0,999);
 
                 #Optimise for s
-                #All being done with nlminb at the moment
                 fit1<-NULL
                 if(gradient){
                   try(fit1<-nlminb(start=startValue, objective= asocialLikelihood,gradient= asocialGradient_fn, lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(iter.max=iterations)));
@@ -107,7 +106,15 @@ setMethod("initialize",
                   print("Error in likeihood optimization");
                   return(NULL)
                 }
-                #		}
+
+                if(standardErrors=="Numeric") method<-"both"
+                if(method=="both"){
+                  if (is.null(fit1)){
+                    try(fit2<-optim(par=fit1@par,fn=asocialLikelihood,method="L-BFGS-B",gr=asocialGradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(maxit=iterations)))
+                  }else{
+                    try(fit2<-optim(par=startValue,fn=asocialLikelihood,method="L-BFGS-B",gr=asocialGradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(maxit=iterations)))
+                  }
+                }else{fit2<-as.list(NA)}
 
                 #Record MLEs
                 outputPar<-fit1$par;
@@ -138,10 +145,15 @@ setMethod("initialize",
 
                 #Get hessian matrix and use it to get standard errors
 
-                if(standardErrors){
+                if(standardErrors=="Analytic"){
                   #Get hessian matrix and use it to get standard errors
                   hessianMat<-hessian_fn(fit1$par,nbdadata,type="asocial", retainInt=retainInt)
-                }else{hessianMat<-NULL}
+                }else{
+                  if(standardErrors=="Numeric"){
+                    #Get hessian matrix and use it to get standard errors
+                    hessianMat<-fit2$hessian
+                  }else{ hessianMat<-NULL}
+                }
 
                 if(is.null(hessianMat)){
                   se<-rep(NaN,length(outputPar))
@@ -170,9 +182,9 @@ setMethod("initialize",
 
 
                 if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
+                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
                 }else{
-                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
 
                 }
               }
@@ -214,7 +226,19 @@ setMethod("initialize",
                 print("Error in likeihood optimization");
                 return(NULL)
               }
-              #		}
+
+              #SEs currently set to numeric if int variables are included
+              if(noILVint>0) standardErrors<-"Numeric"
+
+              if(standardErrors=="Numeric") method<-"both"
+              if(method=="both"){
+                if (is.null(fit1)){
+                  try(fit2<-optim(par=fit1@par,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                }else{
+                  try(fit2<-optim(par=startValue,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                }
+              }else{fit2<-as.list(NA)}
+
 
               #Record MLEs
               outputPar<-fit1$par;
@@ -243,12 +267,16 @@ setMethod("initialize",
               if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
               if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
 
-              #SEs currently not available if int variables are included
-              if(noILVint>0) standardErrors<-F
-              if(standardErrors){
+
+              if(standardErrors=="Analytic"){
                 #Get hessian matrix and use it to get standard errors
-                hessianMat<-hessian_fn(fit1$par,nbdadata)
-              }else{hessianMat<-NULL}
+                hessianMat<-hessian_fn(fit1$par,nbdadata,type="social", retainInt=retainInt)
+              }else{
+                if(standardErrors=="Numeric"){
+                  #Get hessian matrix and use it to get standard errors
+                  hessianMat<-fit2$hessian
+                }else{ hessianMat<-NULL}
+              }
 
               if(is.null(hessianMat)){
                 se<-rep(NaN,length(outputPar))
@@ -276,9 +304,9 @@ setMethod("initialize",
               }
 
               if(is.character(nbdadata)){
-                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
               }else{
-                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
 
               }
               }else
@@ -325,7 +353,16 @@ setMethod("initialize",
                   print("Error in likeihood optimization");
                   return(NULL)
                 }
-                #		}
+
+                if(standardErrors=="Numeric") method<-"both"
+                if(method=="both"){
+                  if (is.null(fit1)){
+                    try(fit2<-optim(par=fit1@par,fn=oadaLikelihood_SLdom,method="L-BFGS-B",gr=gradient_SLdom,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                  }else{
+                    try(fit2<-optim(par=startValue,fn=oadaLikelihood_SLdom,method="L-BFGS-B",gr=gradient_SLdom,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                  }
+                }else{fit2<-as.list(NA)}
+
 
                 #Record MLEs
                 outputPar<-c(1,fit1$par);
@@ -359,10 +396,18 @@ setMethod("initialize",
                 if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
 
 
-                if(standardErrors){
+                if(standardErrors=="Analytic"){standardErrors<-"Numeric"}
                   #Hessian matrix not yet fixed for SLdom models
-                  standardErrors<-F
-                  print("Standard errors cannot currently be returned for a social learning dominant model. Use profile likelihood techniques to obtain confidence intervals.")
+
+
+                if(standardErrors=="Analytic"){
+                  #Get hessian matrix and use it to get standard errors
+                  hessianMat<-hessian_fn(fit1$par,nbdadata,type="social", retainInt=retainInt)
+                }else{
+                  if(standardErrors=="Numeric"){
+                    #Get hessian matrix and use it to get standard errors
+                    hessianMat<-fit2$hessian
+                  }else{ hessianMat<-NULL}
                 }
 
                 if(standardErrors){
@@ -396,9 +441,9 @@ setMethod("initialize",
                 }
 
                 if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
                 }else{
-                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
 
                 }
             }
@@ -407,7 +452,7 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors=T,formula=NULL,coxmeFit=NULL,SLdom=F){
+oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Analytic",formula=NULL,coxmeFit=NULL,SLdom=F){
   if(type=="social"|type=="asocial"){
     if(is.null(coxmeFit)){
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not
