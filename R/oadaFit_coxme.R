@@ -116,7 +116,11 @@ setMethod("initialize",
             if(is.null(startValue)){
               #Fit a model without random effects to get the starting values for the coxme fit
               modelNoRE<-oadaFit(nbdadata= nbdadata,type=type,iterations=iterations,standardErrors=F,coxmeFit=F)
-              startValue<-modelNoRE@outputPar[-((length(modelNoRE@outputPar)-noILVmulti+1):length(modelNoRE@outputPar))]
+              if(nbdadatatemp@multi_ilv[1]=="ILVabsent"){
+                startValue<-modelNoRE@outputPar
+              }else{
+                startValue<-modelNoRE@outputPar[-((length(modelNoRE@outputPar)-noILVmulti+1):length(modelNoRE@outputPar))]
+              }
             }
 
             if(type=="asocial"){
@@ -166,17 +170,19 @@ setMethod("initialize",
               }
 
               #Extract names of variables
-              if(multi_ilv[1]=="ILVabsent"){varNames<-"No variables"}else{varNames <- names(fixef(model))};
+              if(nbdadatatemp@multi_ilv[1]=="ILVabsent"){varNames<-"No variables"}else{varNames <- names(fixef(model))};
 
               #get standard errors from fitted coxme model
 
-              if(multi_ilv[1]=="ILVabsent"){se<-NaN}else{
+              if(nbdadatatemp@multi_ilv[1]=="ILVabsent"){se<-NaN}else{
                 ##extract vcov matrix
                 vcov.mat <- as.matrix(vcov(model))
                 se <- sqrt(diag(vcov.mat))
                 names(se) <- varNames
               }
                 hessianMat<-matrix(NA)
+
+              if(is.null(outputPar)) outputPar<-NaN
 
               if(is.character(nbdadata)){
                 callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadatatemp, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,REvar=model$vcoef,fixedFormula=model$formulaList$fixed,randomFormula=model$formulaList$random,...)
