@@ -1,7 +1,7 @@
 Package: NBDA
 Type: Package
 Title: A Package For Implementing Network-Based Diffusion Analysis
-Version: 0.6.1
+Version: 0.6.2
 Date: 2018
 Authors@R: c(person("William","Hoppitt",email="whoppitt@mac.com",role=c("cre","aut")),person("Theoni","Photopoulou",email="tbc",role="aut"),person("Matthew","Hasenjager",email="Matthew.Hasenjager@rhul.ac.uk",role="aut"),person("Elli","Leadbeater",email="Elli.Leadbeater@rhul.ac.uk",role="aut"))
 Maintainer: William Hoppitt <whoppitt@mac.com>
