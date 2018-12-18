@@ -402,18 +402,13 @@ setMethod("initialize",
 
                 if(standardErrors=="Analytic"){
                   #Get hessian matrix and use it to get standard errors
-                  hessianMat<-hessian_fn(fit1$par,nbdadata,type="social", retainInt=retainInt)
+                  hessianMat<-hessian_fn(fit1$par,nbdadata)
                 }else{
                   if(standardErrors=="Numeric"){
                     #Get hessian matrix and use it to get standard errors
                     hessianMat<-fit2$hessian
                   }else{ hessianMat<-NULL}
                 }
-
-                if(standardErrors){
-                  #Get hessian matrix and use it to get standard errors
-                  hessianMat<-hessian_fn(fit1$par,nbdadata)
-                }else{hessianMat<-NULL}
 
                 if(is.null(hessianMat)){
                   se<-rep(NaN,length(outputPar))
