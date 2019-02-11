@@ -241,7 +241,7 @@ setMethod("initialize",
               #SEs currently set to numeric if int variables are included
               if(noILVint>0) standardErrors<-"Numeric"
 
-              if(standardErrors=="Numeric") method<-"both"
+              #if(standardErrors=="Numeric") method<-"both"
               if(method=="both"){
                 if (is.null(fit1)){
                   try(fit2<-optim(par=fit1$par,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
@@ -297,7 +297,7 @@ setMethod("initialize",
               }else{
                 if(standardErrors=="Numeric"){
                   #Get hessian matrix and use it to get standard errors
-                  hessianMat<- hessian(func=oadaLikelihood,x=fit1$par,nbdadata=nbdaDataObject)
+                  hessianMat<- hessian(func=oadaLikelihood,x=fit1$par,nbdadata=nbdadata)
 
                 }else{ hessianMat<-NULL}
               }
@@ -442,7 +442,7 @@ setMethod("initialize",
                 }else{
                   if(standardErrors=="Numeric"){
                     #Get hessian matrix and use it to get standard errors
-                    hessianMat<-hessian(func=oadaLikelihood_SLdom,x=fit1$par,nbdadata=nbdaDataObject)
+                    hessianMat<-hessian(func=oadaLikelihood_SLdom,x=fit1$par,nbdadata=nbdadata)
                   }else{ hessianMat<-NULL}
                 }
 
@@ -483,7 +483,7 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
+oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
   if(type=="social"|type=="asocial"){
     if(is.null(coxmeFit)){
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not
