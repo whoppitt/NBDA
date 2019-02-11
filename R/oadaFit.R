@@ -107,10 +107,11 @@ setMethod("initialize",
                   return(NULL)
                 }
 
-                if(standardErrors=="Numeric") method<-"both"
+                #if(standardErrors=="Numeric") method<-"both"
+                # I am trying switching to using the numDeriv package to get these
                 if(method=="both"){
                   if (is.null(fit1)){
-                    try(fit2<-optim(par=fit1@par,fn=asocialLikelihood,method="L-BFGS-B",gr=asocialGradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(maxit=iterations)))
+                    try(fit2<-optim(par=fit1$par,fn=asocialLikelihood,method="L-BFGS-B",gr=asocialGradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(maxit=iterations)))
                   }else{
                     try(fit2<-optim(par=startValue,fn=asocialLikelihood,method="L-BFGS-B",gr=asocialGradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,retainInt=retainInt,control=list(maxit=iterations)))
                   }
@@ -138,10 +139,20 @@ setMethod("initialize",
 
                 #		}
                 #Extract names of variables
-                varNames<-NULL
-                if(!is.null(asocialVarNames))varNames<-c(varNames,paste("Asocial:",asocialVarNames))
-                if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
-                if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
+               varNames<-NULL
+                parCounter<-0
+                if(!is.null(asocialVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(asocialVarNames)),"Asocial:",asocialVarNames))
+                  parCounter<-parCounter+length(asocialVarNames)
+                }
+                if(!is.null(intVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(intVarNames)),"Social:",intVarNames))
+                  parCounter<-parCounter+length(intVarNames)
+                }
+                if(!is.null(multiVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(multiVarNames)),"Social= asocial:",multiVarNames))
+                }
+
 
                 #Get hessian matrix and use it to get standard errors
 
@@ -151,7 +162,7 @@ setMethod("initialize",
                 }else{
                   if(standardErrors=="Numeric"){
                     #Get hessian matrix and use it to get standard errors
-                    hessianMat<-fit2$hessian
+                    hessianMat<-hessian(func=asocialLikelihood,x=fit1$par,nbdadata=nbdadata,retainInt=retainInt)
                   }else{ hessianMat<-NULL}
                 }
 
@@ -233,7 +244,7 @@ setMethod("initialize",
               if(standardErrors=="Numeric") method<-"both"
               if(method=="both"){
                 if (is.null(fit1)){
-                  try(fit2<-optim(par=fit1@par,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                  try(fit2<-optim(par=fit1$par,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
                 }else{
                   try(fit2<-optim(par=startValue,fn=oadaLikelihood,method="L-BFGS-B",gr=gradient_fn,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
                 }
@@ -261,11 +272,23 @@ setMethod("initialize",
 
 
               #		}
+
               #Extract names of variables
-              varNames<-paste("Social transmission",1:noSParam)
-              if(!is.null(asocialVarNames))varNames<-c(varNames,paste("Asocial:",asocialVarNames))
-              if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
-              if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
+              parCounter<-0
+              varNames<-paste(parCounter+(1:noSParam),"Social transmission",1:noSParam)
+              parCounter<-parCounter+noSParam
+              if(!is.null(asocialVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(asocialVarNames)),"Asocial:",asocialVarNames))
+                parCounter<-parCounter+length(asocialVarNames)
+              }
+              if(!is.null(intVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(intVarNames)),"Social:",intVarNames))
+                parCounter<-parCounter+length(intVarNames)
+              }
+              if(!is.null(multiVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(multiVarNames)),"Social= asocial:",multiVarNames))
+              }
+
 
 
               if(standardErrors=="Analytic"){
@@ -274,7 +297,8 @@ setMethod("initialize",
               }else{
                 if(standardErrors=="Numeric"){
                   #Get hessian matrix and use it to get standard errors
-                  hessianMat<-fit2$hessian
+                  hessianMat<- hessian(func=oadaLikelihood,x=fit1$par,nbdadata=nbdaDataObject)
+
                 }else{ hessianMat<-NULL}
               }
 
@@ -354,10 +378,10 @@ setMethod("initialize",
                   return(NULL)
                 }
 
-                if(standardErrors=="Numeric") method<-"both"
+               # if(standardErrors=="Numeric") method<-"both"
                 if(method=="both"){
                   if (is.null(fit1)){
-                    try(fit2<-optim(par=fit1@par,fn=oadaLikelihood_SLdom,method="L-BFGS-B",gr=gradient_SLdom,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
+                    try(fit2<-optim(par=fit1$par,fn=oadaLikelihood_SLdom,method="L-BFGS-B",gr=gradient_SLdom,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
                   }else{
                     try(fit2<-optim(par=startValue,fn=oadaLikelihood_SLdom,method="L-BFGS-B",gr=gradient_SLdom,hessian=T,lower=lower, upper=upper,nbdadata=nbdadata,control=list(maxit=iterations)))
                   }
@@ -389,11 +413,23 @@ setMethod("initialize",
 
 
                 #		}
+
                 #Extract names of variables
-                varNames<-paste("Social transmission",1:noSParam)
-                if(!is.null(asocialVarNames))varNames<-c(varNames,paste("Asocial:",asocialVarNames))
-                if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
-                if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
+                parCounter<-0
+                varNames<-paste(parCounter+(1:noSParam),"Social transmission",1:noSParam)
+                parCounter<-parCounter+noSParam
+                if(!is.null(asocialVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(asocialVarNames)),"Asocial:",asocialVarNames))
+                  parCounter<-parCounter+length(asocialVarNames)
+                }
+                if(!is.null(intVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(intVarNames)),"Social:",intVarNames))
+                  parCounter<-parCounter+length(intVarNames)
+                }
+                if(!is.null(multiVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(multiVarNames)),"Social= asocial:",multiVarNames))
+                }
+
 
 
                 if(standardErrors=="Analytic"){standardErrors<-"Numeric"}
@@ -406,7 +442,7 @@ setMethod("initialize",
                 }else{
                   if(standardErrors=="Numeric"){
                     #Get hessian matrix and use it to get standard errors
-                    hessianMat<-fit2$hessian
+                    hessianMat<-hessian(func=oadaLikelihood_SLdom,x=fit1$par,nbdadata=nbdaDataObject)
                   }else{ hessianMat<-NULL}
                 }
 
@@ -447,7 +483,7 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Analytic",formula=NULL,coxmeFit=NULL,SLdom=F){
+oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
   if(type=="social"|type=="asocial"){
     if(is.null(coxmeFit)){
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not

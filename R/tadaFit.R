@@ -10,7 +10,7 @@ setClass("tadaFit",representation(nbdaMultiDiff="character",nbdadata="nbdaData",
 #Method for initializing addFit object- including model fitting
 setMethod("initialize",
           signature(.Object = "tadaFit"),
-          function (.Object, nbdadata,type,startValue,upper,lower,method,interval,gradient,iterations,baseline,noHazFunctPars,hazFunct,cumHaz,...)
+          function (.Object, nbdadata,type,startValue,upper,lower,method,interval,gradient,iterations,standardErrors,baseline,noHazFunctPars,hazFunct,cumHaz,...)
           {
 
             if(baseline=="constant") noHazFunctPars<-1
@@ -116,13 +116,24 @@ setMethod("initialize",
                 if(baseline=="weibull") varNames<-c("Scale (1/rate):", "Shape")
                 if(baseline=="gamma") varNames<-c("Scale (1/rate):", "Shape")
                 if(baseline=="custom") varNames<-paste("Baseline Parameter",1:noHazFunctPars)
-                if(!is.null(asocialVarNames))varNames<-c(varNames,paste("Asocial:",asocialVarNames))
-                if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
-                if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
+                parCounter<-0
+                if(!is.null(asocialVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(asocialVarNames)),"Asocial:",asocialVarNames))
+                  parCounter<-parCounter+length(asocialVarNames)
+                }
+                if(!is.null(intVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(intVarNames)),"Social:",intVarNames))
+                  parCounter<-parCounter+length(intVarNames)
+                }
+                if(!is.null(multiVarNames)){
+                  varNames<-c(varNames,paste(parCounter+(1:length(multiVarNames)),"Social= asocial:",multiVarNames))
+                }
 
                 #Get hessian matrix and use it to get standard errors
 
-                 hessianMat<-hessian(func=asocialTadaLikelihood,x=fit1$par,nbdadata=nbdadata,retainInt=retainInt,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+                 if (standardErrors!=F){
+                   hessianMat<-hessian(func=asocialTadaLikelihood,x=fit1$par,nbdadata=nbdadata,retainInt=retainInt,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+                 } else {hessianMat<-NULL}
 
                 if(is.null(hessianMat)){
                   se<-rep(NaN,length(outputPar))
@@ -232,14 +243,26 @@ setMethod("initialize",
               if(baseline=="weibull") varNames<-c("Scale (1/rate):", "Shape")
               if(baseline=="gamma") varNames<-c("Scale (1/rate):", "Shape")
               if(baseline=="custom") varNames<-paste("Baseline Parameter",1:noHazFunctPars)
-              varNames<-c(varNames,paste("Social transmission",1:noSParam))
-              if(!is.null(asocialVarNames))varNames<-c(varNames,paste("Asocial:",asocialVarNames))
-              if(!is.null(intVarNames))varNames<-c(varNames,paste("Social:",intVarNames))
-              if(!is.null(multiVarNames))varNames<-c(varNames,paste("Social= asocial:",multiVarNames))
+              parCounter<-0
+              varNames<-c(varNames,paste(parCounter+(1:noSParam),"Social transmission",1:noSParam))
+              parCounter<-parCounter+noSParam
+              if(!is.null(asocialVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(asocialVarNames)),"Asocial:",asocialVarNames))
+                parCounter<-parCounter+length(asocialVarNames)
+              }
+              if(!is.null(intVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(intVarNames)),"Social:",intVarNames))
+                parCounter<-parCounter+length(intVarNames)
+              }
+              if(!is.null(multiVarNames)){
+                varNames<-c(varNames,paste(parCounter+(1:length(multiVarNames)),"Social= asocial:",multiVarNames))
+              }
 
               #Get hessian matrix and use it to get standard errors
 
-              hessianMat<-hessian(func=tadaLikelihood,x=fit1$par,nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+              if (standardErrors!=F){
+                hessianMat<-hessian(func=tadaLikelihood,x=fit1$par,nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+              } else {hessianMat<-NULL}
 
               if(is.null(hessianMat)){
                 se<-rep(NaN,length(outputPar))
@@ -279,9 +302,9 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-tadaFit<-function(nbdadata,type="social",startValue=NULL, upper=NULL,lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150,baseline="constant",noHazFunctPars=NULL,hazFunct=function() return(NULL),cumHaz=function() return(NULL)){
+tadaFit<-function(nbdadata,type="social",startValue=NULL, upper=NULL,lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150,standardErrors=T,baseline="constant",noHazFunctPars=NULL,hazFunct=function() return(NULL),cumHaz=function() return(NULL)){
   if(type=="social"|type=="asocial"){
-      return(new("tadaFit",nbdadata= nbdadata,type= type, startValue= startValue,upper=upper,lower=lower,interval= interval,method= method,gradient=gradient,iterations=iterations,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
+      return(new("tadaFit",nbdadata= nbdadata,type= type, startValue= startValue,upper=upper,lower=lower,interval= interval,method= method,gradient=gradient,iterations=iterations,standardErrors=standardErrors,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
   }else{
     print("Error: Invalid type of model")
     return()
