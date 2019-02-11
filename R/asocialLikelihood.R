@@ -13,22 +13,22 @@ asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
       }
     }else{
       retainInt<-sum(nbdadata@offsetCorrection[,1])>0
-    }
+    }  
   }
-
+  
 if(is.character(nbdadata)){
-
+	
 		totalLikelihood <- 0;
+		
 
-
-
+			
 		for(i in 1:length(nbdadata)){
 			subdata <- eval(as.name(nbdadata[i]));
 			totalLikelihood <- totalLikelihood+ asocialLikelihood(parVect= parVect, nbdadata=subdata,retainInt=retainInt);
 			}
-
+					
 		return(totalLikelihood);
-
+					
 }else{
 
 	#Define required function
@@ -39,20 +39,17 @@ if(is.character(nbdadata)){
 	noILVasoc<- dim(nbdadata@asocILVdata)[2] #ILV effects on asocial learning
 	noILVmulti<- dim(nbdadata@multiILVdata)[2] #ILV multiplicative model effects
 	noILVint<- dim(nbdadata@intILVdata)[2] #ILV effects on social learning
-
-
+	
+	
 	if(nbdadata@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
 	if(nbdadata@int_ilv[1]=="ILVabsent") noILVint<-0
 	if(nbdadata@multi_ilv[1]=="ILVabsent") noILVmulti<-0
-
-	includeInOADA<-nbdadata@event.id %in% nbdadata@event.id[nbdadata@status==1]
-	#Exclude the lines of data corresponding to the final period to endtime, if necedssary
-	datalength <- sum(includeInOADA)
+		
+	datalength <- length(nbdadata@id) #ILV effects on social transmission
 
 	#Extract vector giving which naive individuals were present in the diffusion for each acqusition event
-	presentInDiffusion<-nbdadata@ presentInDiffusion[includeInOADA]
-
-
+	presentInDiffusion<-nbdadata@ presentInDiffusion
+		
 	#Extend par to include 0 s parameters
 	parVect<-c(rep(0,noSParam),parVect)
 
@@ -69,9 +66,9 @@ if(is.character(nbdadata)){
 	  if(length(parVect)!=noSParam+noILVasoc+noILVint+noILVmulti){
 	    cat("Error: parVect wrong length. \nNote a zero offset is provided for the s parameters. \nparVect must not include values for the interaction effects\n")
 	    return(NA)
-	  }
-	}
-
+	  }		  
+	}	  
+	
 	#assign different paramreter values to the right vectors
     sParam <- parVect[1:noSParam]
     asocialCoef <- parVect[(noSParam+1):(noSParam+ noILVasoc)]
@@ -80,37 +77,35 @@ if(is.character(nbdadata)){
     if(nbdadata@asoc_ilv[1]=="ILVabsent") asocialCoef<-NULL
     if(nbdadata@int_ilv[1]=="ILVabsent") intCoef<-NULL
     if(nbdadata@multi_ilv[1]=="ILVabsent") multiCoef<-NULL
-
-
-
-		# create a matrix of the coefficients to multiply by the observed data values, only if there are asocial variables
+    
+    
+        
+	# create a matrix of the coefficients to multiply by the observed data values, only if there are asocial variables 
 	if(nbdadata@asoc_ilv[1]=="ILVabsent"){
 	  asocialLP<-rep(0,datalength)
 	}else{
-	  asocialCoef.mat <- matrix(data=rep(asocialCoef, datalength), nrow=datalength, byrow=T)
-	  asocial.sub <- nbdadata@asocILVdata[includeInOADA,]
+  	asocialCoef.mat <- matrix(data=rep(asocialCoef, datalength), nrow=datalength, byrow=T)
+	  asocial.sub <- nbdadata@asocILVdata
 	  asocialLP <- apply(asocialCoef.mat*asocial.sub, MARGIN=1, FUN=sum)
 	}
-	asocialLP<-asocialLP+nbdadata@offsetCorrection[includeInOADA,2]
-
+	asocialLP<-asocialLP+nbdadata@offsetCorrection[,2]
 
 	# now calculate the multiplicative LP and add to the asocial LP
 	if(nbdadata@multi_ilv[1]=="ILVabsent"){
 	  multiLP<-rep(0,datalength)
 	}else{
 	  multiCoef.mat <- matrix(data=rep(multiCoef, datalength), nrow=datalength, byrow=T)
-	  multi.sub <- nbdadata@multiILVdata[includeInOADA,]
+	  multi.sub <- nbdadata@multiILVdata
 	  multiLP <- apply(multiCoef.mat*multi.sub, MARGIN=1, FUN=sum)
 	}
-	multiLP<-multiLP+nbdadata@offsetCorrection[includeInOADA,4]
+	multiLP<-multiLP+nbdadata@offsetCorrection[,4]
 	asocialLP<-asocialLP+multiLP
-
-	unscaled.st<-nbdadata@offsetCorrection[includeInOADA,1]
-
-
+	
+	unscaled.st<-nbdadata@offsetCorrection[,1]
+	
 #Allow for the fact that the user might provide offsets to the s parameters which might need to be accounted for
 if(retainInt){
-
+  
   #assign different paramreter values to the right vectors
   intCoef<- parVect[(noSParam+noILVasoc+1):(noSParam+ noILVasoc+noILVint)]
 
@@ -119,25 +114,24 @@ if(retainInt){
 	  socialLP<-rep(0,datalength)
 	}else{
 	  intCoef.mat <- matrix(data=rep(intCoef, datalength), nrow=datalength, byrow=T)
-	  int.sub <- nbdadata@intILVdata[includeInOADA,]
+	  int.sub <- nbdadata@intILVdata
 	  socialLP <- apply(intCoef.mat*int.sub, MARGIN=1, FUN=sum)
 	}
-  # calculate
-	socialLP<-socialLP+nbdadata@offsetCorrection[includeInOADA,3]+multiLP
+  # calculate 
+	socialLP<-socialLP+nbdadata@offsetCorrection[,3]+multiLP
 }else{socialLP<-rep(0,datalength)}
-
 
 	#The totalRate is set to zero for naive individuals not in the diffusion for a given event
 	totalRate <- (exp(asocialLP) + exp(socialLP)*unscaled.st)* presentInDiffusion
-
+		
 	#Take logs and add across acquisition events
 	lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
-
-	lComp2.1 <- tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # check this works. this is total rate per event across all naive id
+	
+	lComp2.1 <- tapply(totalRate, INDEX=nbdadata@event.id, FUN=sum) # check this works. this is total rate per event across all naive id
 	lComp2.2 <- sum(log(lComp2.1))
-
+	
 	negloglik <- lComp2.2 - lComp1
-
+	
 	return(negloglik)
 	}
 }
