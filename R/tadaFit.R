@@ -105,7 +105,7 @@ setMethod("initialize",
 
                 #To prevent a low AICc when there are more parameters than data!
                 if(is.nan(aic)|is.nan(aicc)){}else{
-                  if(aicc<aic) aicc<-NaN;
+                  if(aicc<aic) aicc<-Inf;
                 }
 
 
@@ -233,7 +233,7 @@ setMethod("initialize",
 
               #To prevent a low AICc when there are more parameters than data!
               if(is.nan(aic)|is.nan(aicc)){}else{
-                if(aicc<aic) aicc<-NaN;
+                if(aicc<aic) aicc<-Inf;
               }
 
 
