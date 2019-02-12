@@ -1,8 +1,8 @@
 Package: NBDA
 Type: Package
 Title: A Package For Implementing Network-Based Diffusion Analysis
-Version: 0.7.2
-Date: 2018
+Version: 0.7.3
+Date: 2019
 Authors@R: c(person("William","Hoppitt",email="whoppitt@mac.com",role=c("cre","aut")),person("Theoni","Photopoulou",email="theoni.photopoulou@gmail.com",role="aut"),person("Matthew","Hasenjager",email="Matthew.Hasenjager@rhul.ac.uk",role="aut"),person("Elli","Leadbeater",email="Elli.Leadbeater@rhul.ac.uk",role="aut"))
 Maintainer: William Hoppitt <whoppitt@mac.com>
 Description: Implements network-based diffusion analysis (NBDA). Fits both order of acquisition diffusion analysis (OADA) and time of acquisition diffusion analysis (TADA) models. Models are fitted by maximum likeihood and confidence intervals can be calculated using profile likelihood techniques. Multi-model inference methods using AIC/AICc can also be performed. Random effects can be fitted in OADA models using the functions provided in the coxme package. Multiple networks can be included, each representing a different diffusion pathway. Dynamic social networks, that change over time, can also be used.
