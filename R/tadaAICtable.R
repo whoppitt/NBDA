@@ -1,18 +1,25 @@
 #At a future date: Make it possible to use multiple Cores on this. Need to make sure the temp objects are being written to different environments but should work automatically.
 
 #Define class of object for the fitted additive model
-setClass("oadaAICtable",representation(nbdaMultiDiff
-="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",typeVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
+setClass("tadaAICtable",representation(nbdaMultiDiff
+="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",MLEhaz="matrix",SEhaz="matrix",typeVect="character",baselineVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
 
 
 #Method for initializing addFit object- including model fitting
 setMethod("initialize",
-    signature(.Object = "oadaAICtable"),
-    function (.Object, nbdadata,typeVect,constraintsVectMatrix,offsetVectMatrix,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,...)
+    signature(.Object = "tadaAICtable"),
+    function (.Object, nbdadata,typeVect,baselineVect,constraintsVectMatrix,offsetVectMatrix,noHazFunctParsCustom,hazFunct,cumHaz,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,...)
     {
 
 
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
+    if(is.null(baselineVect)){baselineVect<-rep("constant",dim(constraintsVectMatrix)[1])}
+
+    noHazFunctParsVect<-rep(NA,length(baselineVect))
+    noHazFunctParsVect[baselineVect=="constant"]<-1
+    noHazFunctParsVect[baselineVect=="weibull"]<-2
+    noHazFunctParsVect[baselineVect=="gamma"]<-2
+    noHazFunctParsVect[baselineVect=="custom"]<-noHazFunctParsCustom
 
 	 	#If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
     	if(is.character(nbdadata)){
@@ -62,7 +69,8 @@ setMethod("initialize",
 		  MLEmulti<-matrix(NA,nrow=noModels,ncol= noILVmulti, dimnames=list(1:noModels, nbdadataTemp1@multi_ilv))
 		  SEmulti<-matrix(NA,nrow=noModels,ncol= noILVmulti, dimnames=list(1:noModels, nbdadataTemp1@multi_ilv))
 		}
-
+		MLEhaz<-matrix(NA,nrow=noModels,ncol=max(noHazFunctParsVect),dimnames=list(1:noModels, paste("Baseline parameter",1:max(noHazFunctParsVect),sep="")))
+		SEhaz<-matrix(NA,nrow=noModels,ncol=max(noHazFunctParsVect),dimnames=list(1:noModels, paste("SE Baseline parameter",1:max(noHazFunctParsVect),sep="")))
 
 		#Set up various vectors to record things about each model
 		convergence<-loglik<-aic<-aicc<-seApprox<-rep(NA,noModels)
@@ -112,8 +120,15 @@ setMethod("initialize",
 
 			#Fit the model
 		  model<-NULL
-			try(model<-oadaFit(nbdadata= nbdadataTemp,type=typeVect[i],startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
+			try(model<-tadaFit(nbdadata= nbdadataTemp,type=typeVect[i],startValue=newStartValue,method=method,gradient=gradient,iterations=iterations,standardErrors=T,baseline=baselineVect[i],noHazFunctPars=c,hazFunct=hazFunct,cumHaz=cumHaz))
       if(!is.null(model)){
+
+      #Record baseline hazard rate parameters, then remove them from the model object so the OADA code works
+      MLEhaz[i,1:noHazFunctParsVect[i]]<-model@outputPar[1:noHazFunctParsVect[i]]
+      SEhaz[i,1:noHazFunctParsVect[i]]<-model@se[1:noHazFunctParsVect[i]]
+      model@outputPar<-model@outputPar[-(1:noHazFunctParsVect[i])]
+      model@se<-model@se[-(1:noHazFunctParsVect[i])]
+
 
 			#If it is an asocial model, set constraints to 0 for all s parameters and adjust those for ILVs so they start at 1
 			if(typeVect[i]=="asocial"){
@@ -158,7 +173,7 @@ setMethod("initialize",
 			}
 			}
 
-			#Record MLE and SE for the  effect of interactive ILVs on social learning
+			#Record MLE and SE for the  effect of  ILVs on social learning
       if(noILVint>0){
 			for(j in unique(constraintsVect[(noSParam+noILVasoc+1):(noSParam+ noILVasoc+noILVint)])){
 			  if(j==0){
@@ -278,316 +293,44 @@ setMethod("initialize",
 		}
 
 		if(aicUse=="aic"){
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEhaz,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aic),]
 		}else{
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEhaz,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aicc),]
 		}
 
 		close(pb)
 
 		if(is.character(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 
 		}
     }
 )
 
 
-
 #Function for implementing the initialization
-oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F){
-	return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile))
+tadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL,baselineVect=NULL, offsetVectMatrix = NULL,noHazFunctParsCustom=NULL,hazFunct=function() return(NULL),cumHaz=function() return(NULL), startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F){
+	return(new("tadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, baselineVect=baselineVect,noHazFunctParsCustom=noHazFunctParsCustom,hazFunct=hazFunct,cumHaz=cumHaz,startValue= startValue,method= method, gradient= gradient,iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile))
 
 }
 
 #Method for initializing addFit object- including model fitting
-print.oadaAICtable<-function (oadaAICtable)
+print.tadaAICtable<-function (tadaAICtable)
     {
-		oadaAICtable@printTable
+		tadaAICtable@printTable
 	}
 
-typeSupport<-function(nbdaAICtable){
-	#Calculate support for each type of model in the table
-	support<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$type,sum)
-	numbers<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$type,length)
-	return(data.frame(support=support,numberOfModels=numbers))
-}
 
-networksSupport<-function(nbdaAICtable){
+baselineSupport<-function(tadaAICtable){
   #Calculate support for each combination of network constraints in the table
-  support<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$netCombo,sum)
-  numbers<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$netCombo,length)
+  support<-tapply(tadaAICtable@printTable$AkaikeWeight, tadaAICtable@printTable$baseline,sum)
+  numbers<-tapply(tadaAICtable@printTable$AkaikeWeight, tadaAICtable@printTable$baseline,length)
   return(data.frame(support=support,numberOfModels=numbers))
 }
 
-typeByNetworksSupport<-function(nbdaAICtable){
-  if(class(nbdaAICtable)=="oadaAICtable"){
-    typesList<-levels(nbdaAICtable@printTable$type)
-    netComboList<-levels(nbdaAICtable@printTable$netCombo)
-    output<-array(NA,dim=c(length(netComboList),nrow=length(typesList),2))
-    for(i in 1:length(typesList)){
-      output[,i,1]<-tapply(nbdaAICtable@printTable$AkaikeWeight[nbdaAICtable@printTable$type==typesList[i]], nbdaAICtable@printTable$netCombo[nbdaAICtable@printTable$type==typesList[i]],sum)
-      output[,i,2]<-tapply(nbdaAICtable@printTable$AkaikeWeight[nbdaAICtable@printTable$type==typesList[i]], nbdaAICtable@printTable$netCombo[nbdaAICtable@printTable$type==typesList[i]],length)
-    }
-    output[is.na(output[,,2])]<-0
-    dimnames(output)<-list(netComboList,typesList,c("Support","NumberOfModels"))
-    return(output)
-  }
-  if(class(nbdaAICtable)=="tadaAICtable"){
-    typesList<-levels(nbdaAICtable@printTable$type)
-    netComboList<-levels(nbdaAICtable@printTable$netCombo)
-    baselineList<-levels(nbdaAICtable@printTable$baseline)
-    output<-array(NA,dim=c(length(netComboList),length(typesList),length(baselineList),2))
-    for(j in 1:length(baselineList)){
-      for(i in 1:length(typesList)){
-        output[,i,j,1]<-tapply(nbdaAICtable@printTable$AkaikeWeight[nbdaAICtable@printTable$type==typesList[i]&nbdaAICtable@printTable$baseline==baselineList[j]], nbdaAICtable@printTable$netCombo[nbdaAICtable@printTable$type==typesList[i]&nbdaAICtable@printTable$baseline==baselineList[j]],sum)
-        output[,i,j,2]<-tapply(nbdaAICtable@printTable$AkaikeWeight[nbdaAICtable@printTable$type==typesList[i]&nbdaAICtable@printTable$baseline==baselineList[j]], nbdaAICtable@printTable$netCombo[nbdaAICtable@printTable$type==typesList[i]&nbdaAICtable@printTable$baseline==baselineList[j]],length)
-      }
-    }
-    output[is.na(output[,,,2])]<-0
-    dimnames(output)<-list(netComboList,typesList,paste("baseline=",baselineList),c("Support","NumberOfModels"))
-    return(output)
-  }
-}
 
-
-variableSupport<-function(nbdaAICtable,typeFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE){
-  #Extract the printTable and correct type to include asocial labels
-  printTable<-nbdaAICtable@printTable
-
-  #Extract number of s parameters
-  noSParam<-dim(nbdaAICtable@MLEs)[2]
-  #Extract number of ILVs
-  noILVs <-dim(nbdaAICtable@MLEilv)[2]
-
-
-  #Filter as requested by the user
-  if(!is.null(typeFilter)) {
-    if(includeAsocial){
-      printTable<-printTable[printTable$type==typeFilter|printTable$type=="asocial",]
-    }else{
-      printTable<-printTable[printTable$type==typeFilter,]
-    }
-  }
-  if(!is.null(baselineFilter)&class(nbdaAICtable)=="tadaAICtable") {
-    printTable<-printTable[printTable$baseline==baselineFilter,]
-
-  }
-
-  #Correct Akaike Weights for the new subset of models
-  printTable$AkaikeWeight<-printTable$AkaikeWeight/sum(printTable$AkaikeWeight)
-
-  #Set up a vector to record the support for each variable
-  support<-rep(NA,dim(nbdaAICtable@constraintsVectMatrix)[2])
-  for(i in 1:dim(nbdaAICtable@constraintsVectMatrix)[2]){
-    support[i]<-sum(printTable$AkaikeWeight[printTable[,(i+3)]!=0])
-  }
-  #Convert support into a matrix so I can add dimnames
-  support<-rbind(support)
-  #Give the support vector some dimension names
-  tempNames<-unlist(dimnames(nbdaAICtable@constraintsVectMatrix)[2])
-  dimnames(support)[2]=list(gsub("CONS:","",tempNames))
-
-  return(support)
-
-}
-
-
-modelAverageEstimates<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE,averageType="mean"){
-  #Extract the printTable and correct type to include asocial labels
-  printTable<-nbdaAICtable@printTable
-
-  #Extract number of s parameters
-  noSParam<-dim(nbdaAICtable@MLEs)[2]
-  #Extract number of ILVs
-  noILVs <-dim(nbdaAICtable@MLEilv)[2]
-
-  AkaikeWeight <-nbdaAICtable@AkaikeWeight[order(-nbdaAICtable@AkaikeWeight)]
-  MLEs<-as.matrix(nbdaAICtable@MLEs[order(-nbdaAICtable@AkaikeWeight),])
-  MLEilv<-as.matrix(nbdaAICtable@MLEilv[order(-nbdaAICtable@AkaikeWeight),])
-  MLEint<-as.matrix(nbdaAICtable@MLEint[order(-nbdaAICtable@AkaikeWeight),])
-
-
-  #Filter as requested by the user
-  if(!is.null(typeFilter)) {
-    if(includeAsocial){
-      MLEs <-cbind(MLEs[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      MLEilv <-cbind(MLEilv[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      MLEint <-cbind(MLEint[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      AkaikeWeight<-AkaikeWeight[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial"]
-      netCombo<-printTable$netCombo[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial"]
-    }else{
-      MLEs <-cbind(MLEs[printTable$type==typeFilter|printTable$type=="noILVs",])
-      MLEilv <-cbind(MLEilv[printTable$type==typeFilter|printTable$type=="noILVs",])
-      MLEint <-cbind(MLEint[printTable$type==typeFilter|printTable$type=="noILVs",])
-      AkaikeWeight<-AkaikeWeight[printTable$type==typeFilter|printTable$type=="noILVs"]
-      netCombo<-printTable$netCombo[printTable$type==typeFilter|printTable$type=="noILVs"]
-    }
-  }else{netCombo<-printTable$netCombo}
-  #Filter by network as requested by the user
-  if(!is.null(netFilter)) {
-    MLEs <-MLEs[netCombo==netFilter,]
-    MLEilv <-MLEilv[netCombo==netFilter,]
-    MLEint <-MLEint[netCombo==netFilter,]
-    AkaikeWeight<-AkaikeWeight[netCombo==netFilter]
-  }
-  if(!is.null(baselineFilter)&class(nbdaAICtable)=="tadaAICtable") {
-    MLEs <-cbind(MLEs[printTable$baseline==baselineFilter,])
-    MLEilv <-cbind(MLEilv[printTable$baseline==baselineFilter,])
-    MLEint <-cbind(MLEint[printTable$baseline==baselineFilter,])
-    AkaikeWeight<-AkaikeWeight[printTable$baseline==baselineFilter]
-  }
-
-  #Correct Akaike Weights for the new subset of models
-  AkaikeWeight<-AkaikeWeight/sum(AkaikeWeight)
-
-  #Do means first and then replace with model weighted medians if requested
-  MAvs<-apply(as.matrix(MLEs*AkaikeWeight),2,sum)
-  MAvilv<-apply(as.matrix(MLEilv*AkaikeWeight),2,sum)
-  MAvint<-apply(as.matrix(MLEint*AkaikeWeight),2,sum)
-
-  if(averageType=="mean"){
-
-  }else{
-    if(averageType=="median"){
-      for(i in 1:dim(MLEs)[2]){
-        tempMLE<-MLEs[,i]
-        tempMLEordered<-tempMLE[order(tempMLE)]
-        tempAW<-AkaikeWeight[order(tempMLE)]
-        cumulAW<-cumsum(tempAW)
-        MAvs[i]<-tempMLEordered[min(which(cumulAW>0.5))]
-      }
-      for(i in 1:dim(MLEilv)[2]){
-        tempMLE<-MLEilv[,i]
-        tempMLEordered<-tempMLE[order(tempMLE)]
-        tempAW<-AkaikeWeight[order(tempMLE)]
-        cumulAW<-cumsum(tempAW)
-        MAvilv[i]<-tempMLEordered[min(which(cumulAW>0.5))]
-      }
-      for(i in 1:dim(MLEint)[2]){
-        tempMLE<-MLEint[,i]
-        tempMLEordered<-tempMLE[order(tempMLE)]
-        tempAW<-AkaikeWeight[order(tempMLE)]
-        cumulAW<-cumsum(tempAW)
-        MAvint[i]<-tempMLEordered[min(which(cumulAW>0.5))]
-      }
-
-    }else{
-      print("Invalid averageType, please select 'mean' or 'median'");
-      return(NULL)
-    }
-  }
-
-
-  return(c(MAvs, MAvilv, MAvint))
-}
-
-#To be modified from model averaged estimates function
-unconditionalStdErr<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE,includeNoILVs=TRUE,nanReplace=FALSE){
-  #Extract the printTable and correct type to include asocial labels
-  #Extract the printTable and correct type to include asocial labels
-  printTable<-nbdaAICtable@printTable
-
-  #Extract number of s parameters
-  noSParam<-dim(nbdaAICtable@MLEs)[2]
-  #Extract number of ILVs
-  noILVs <-dim(nbdaAICtable@MLEilv)[2]
-
-  AkaikeWeight <-nbdaAICtable@AkaikeWeight[order(-nbdaAICtable@AkaikeWeight)]
-  MLEs<-as.matrix(nbdaAICtable@MLEs[order(-nbdaAICtable@AkaikeWeight),])
-  MLEilv<-as.matrix(nbdaAICtable@MLEilv[order(-nbdaAICtable@AkaikeWeight),])
-  MLEint<-as.matrix(nbdaAICtable@MLEint[order(-nbdaAICtable@AkaikeWeight),])
-  SEs<-as.matrix(nbdaAICtable@SEs[order(-nbdaAICtable@AkaikeWeight),])
-  SEilv<-as.matrix(nbdaAICtable@SEilv[order(-nbdaAICtable@AkaikeWeight),])
-  SEint<-as.matrix(nbdaAICtable@SEint[order(-nbdaAICtable@AkaikeWeight),])
-
-
-  #Filter as requested by the user
-  if(!is.null(typeFilter)) {
-    if(includeAsocial){
-      MLEs <-cbind(MLEs[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      MLEilv <-cbind(MLEilv[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      MLEint <-cbind(MLEint[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      AkaikeWeight<-AkaikeWeight[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial"]
-      netCombo<-printTable$netCombo[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial"]
-    }else{
-      MLEs <-cbind(MLEs[printTable$type==typeFilter|printTable$type=="noILVs",])
-      MLEilv <-cbind(MLEilv[printTable$type==typeFilter|printTable$type=="noILVs",])
-      MLEint <-cbind(MLEint[printTable$type==typeFilter|printTable$type=="noILVs",])
-      AkaikeWeight<-AkaikeWeight[printTable$type==typeFilter|printTable$type=="noILVs"]
-      netCombo<-printTable$netCombo[printTable$type==typeFilter|printTable$type=="noILVs"]
-    }
-  }else{netCombo<-printTable$netCombo}
-  #Filter by network as requested by the user
-  if(!is.null(netFilter)) {
-    MLEs <-MLEs[netCombo==netFilter,]
-    MLEilv <-MLEilv[netCombo==netFilter,]
-    MLEint <-MLEint[netCombo==netFilter,]
-    AkaikeWeight<-AkaikeWeight[netCombo==netFilter]
-  }
-  if(!is.null(baselineFilter)&class(nbdaAICtable)=="tadaAICtable") {
-    MLEs <-MLEs[printTable$baseline==baselineFilter,]
-    MLEilv <-MLEilv[printTable$baseline==baselineFilter,]
-    MLEint <-MLEint[printTable$baseline==baselineFilter,]
-    AkaikeWeight<-AkaikeWeight[printTable$baseline==baselineFilter]
-  }
-
-  #Filter as requested by the user
-  if(!is.null(typeFilter)) {
-    if(includeAsocial){
-      SEs <-cbind(SEs[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      SEilv <-cbind(SEilv[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-      SEint <-cbind(SEint[printTable$type==typeFilter|printTable$type=="noILVs"|printTable$type=="asocial",])
-    }else{
-      SEs <-cbind(SEs[printTable$type==typeFilter|printTable$type=="noILVs",])
-      SEilv <-cbind(SEilv[printTable$type==typeFilter|printTable$type=="noILVs",])
-      SEint <-cbind(SEint[printTable$type==typeFilter|printTable$type=="noILVs",])
-    }
-  }else{netCombo<-printTable$netCombo}
-  #Filter by network as requested by the user
-  if(!is.null(netFilter)) {
-    SEs <-SEs[netCombo==netFilter,]
-    SEilv <-SEilv[netCombo==netFilter,]
-    SEint <-SEint[netCombo==netFilter,]
-  }
-  if(!is.null(baselineFilter)&class(nbdaAICtable)=="tadaAICtable") {
-    SEs <-SEs[printTable$baseline==baselineFilter,]
-    SEilv <-SEilv[printTable$baseline==baselineFilter,]
-    SEint <-SEint[printTable$baseline==baselineFilter,]
-  }
-
-  #If nanReplace option is used, then nan for individual model SEs are replaced with a weighted average across all model containing that parameter
-  if(nanReplace){
-    for(i in 1:dim(SEs)[2]){
-      SEs[is.nan(SEs[,i]),i]<-sum(SEs[!is.nan(SEs[,i])&(SEs[,i]>0),i]*AkaikeWeight[!is.nan(SEs[,i])&(SEs[,i]>0)])/sum(AkaikeWeight[!is.nan(SEs[,i])&(SEs[,i]>0)])
-    }
-    for(i in 1:dim(SEilv)[2]){
-      SEilv[is.nan(SEilv[,i]),i]<-sum(SEilv[!is.nan(SEilv[,i])&(SEilv[,i]>0),i]*AkaikeWeight[!is.nan(SEilv[,i])&(SEilv[,i]>0)])/sum(AkaikeWeight[!is.nan(SEilv[,i])&(SEilv[,i]>0)])
-    }
-    for(i in 1:dim(SEint)[2]){
-      SEint[is.nan(SEint[,i]),i]<-sum(SEint[!is.nan(SEint[,i])&(SEint[,i]>0),i]*AkaikeWeight[!is.nan(SEint[,i])&(SEint[,i]>0)])/sum(AkaikeWeight[!is.nan(SEint[,i])&(SEint[,i]>0)])
-    }
-  }
-
-  #Correct Akaike Weights for the new subset of models
-  AkaikeWeight<-AkaikeWeight/sum(AkaikeWeight)
-
-  MAvs<-apply(as.matrix(MLEs*AkaikeWeight),2,sum)
-  MAvilv<-apply(as.matrix(MLEilv*AkaikeWeight),2,sum)
-  MAvint<-apply(as.matrix(MLEint*AkaikeWeight),2,sum)
-
-  modelContributionToSEs<-AkaikeWeight*(SEs^2 + t((t(MLEs)-MAvs))^2)
-  modelContributionToSEilv<-AkaikeWeight*(SEilv^2 + t((t(MLEilv)-MAvilv))^2)
-  modelContributionToSEint<-AkaikeWeight*(SEint^2 + t((t(MLEint)-MAvint))^2)
-
-  UCSEs<-apply(as.matrix(modelContributionToSEs),2,sum)
-  UCSEilv<-apply(as.matrix(modelContributionToSEilv),2,sum)
-  UCSEint<-apply(as.matrix(modelContributionToSEint),2,sum)
-
-  return(c(UCSEs, UCSEilv, UCSEint))
-}
 

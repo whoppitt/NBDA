@@ -483,7 +483,7 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
+oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
   if(type=="social"|type=="asocial"){
     if(is.null(coxmeFit)){
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not
