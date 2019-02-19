@@ -87,6 +87,20 @@ setMethod("initialize",
 		  constraintsVect<-constraintsVectMatrix[i,]
 		  offsetVect <-offsetVectMatrix[i,]
 
+
+		  if(is.null(startValue)) {
+		    newStartValue<-NULL
+		  }else{
+		    newStartValue<-c(startValue[1:noHazFunctParsVect[i]],tapply(startValue[-(1:max(noHazFunctParsVect))],constraintsVect,mean)[-1])
+		  }
+
+		  if(is.null(lowerList)) {
+		    lower<-NULL
+		  }else{
+		    lower<-lowerList[i,]
+		    lower<-lower[constraintsVect!=0]
+		  }
+
 		  #If the user has specified all zeroes for the s parameters, we need to change it to an "asocial" type
 		  #And we need to add a one for the first s parameter so the constrained NBDA object can be created
 		  #And the ILV numbers need shifting up one, to be shifted down later
@@ -96,18 +110,6 @@ setMethod("initialize",
 		    constraintsVect[-(1:noSParam)]<-(constraintsVect[-(1:noSParam)]+1)*(constraintsVect[-(1:noSParam)]>0);
 		  }
 
-		  if(is.null(startValue)) {
-		    newStartValue<-NULL
-		  }else{
-		    newStartValue<-startValue[constraintsVect!=0]
-		  }
-
-		  if(is.null(lowerList)) {
-		    lower<-NULL
-		  }else{
-		    lower<-lowerList[i,]
-		    lower<-lower[constraintsVect!=0]
-		  }
 		  #Create the necessary constrained data objects
 		  if(is.character(nbdadata)){
 		    nbdadataTemp<-paste(nbdadata,"Temp",sep="")

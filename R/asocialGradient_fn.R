@@ -137,7 +137,7 @@ if(is.character(nbdadata)){
     for (i in 1:length(nbdadata@asoc_ilv)){
 
       # UNCONSTRAINED OR ADDITIVE - first derivative of the likelihood function for asocial variables
-      asocial_grad[i] <- sum((nbdadata@asocILVdata[nbdadata@status==1,i]*(exp(asocialLP[nbdadata@status==1])))/totalRate[nbdadata@status==1] -tapply(nbdadata@asocILVdata[,i]*(exp(asocialLP))*presentInDiffusion, INDEX=nbdadata@event.id, FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id, FUN=sum))
+      asocial_grad[i] <- sum((nbdadata@asocILVdata[nbdadata@status==1,i]*(exp(asocialLP[nbdadata@status==1])))/totalRate[nbdadata@status==1] -tapply(nbdadata@asocILVdata[includeInOADA,i]*(exp(asocialLP))*presentInDiffusion, INDEX=nbdadata@event.id[includeInOADA], FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum))
       # NUM: variable for solver * solver asocial rate / solver total rate
       # DENOM: variable for all individiduals * asocial rate, summed over all acquisition events / total naive rate
     } # closes loop through asocialVar
@@ -149,7 +149,7 @@ if(is.character(nbdadata)){
     for (i in 1:length(nbdadata@multi_ilv)){
 
       # UNCONSTRAINED OR ADDITIVE - first derivative of the likelihood function for asocial variables
-      multi_grad[i] <- sum(nbdadata@multiILVdata[nbdadata@status==1,i] - tapply(nbdadata@multiILVdata[,i]*(totalRate), INDEX=nbdadata@event.id, FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id, FUN=sum))
+      multi_grad[i] <- sum(nbdadata@multiILVdata[nbdadata@status==1,i] - tapply(nbdadata@multiILVdata[includeInOADA,i]*(totalRate), INDEX=nbdadata@event.id[includeInOADA], FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum))
       # NUM: variable for solver * solver asocial rate / solver total rate
       # DENOM: variable for all individiduals * asocial rate, summed over all acquisition events / total naive rate
     } # closes loop through asocialVar
@@ -163,7 +163,7 @@ if(is.character(nbdadata)){
     for (i in 1:length(nbdadata@int_ilv)){
 
 
-      social_grad[i] <- sum((nbdadata@intILVdata[nbdadata@status==1,i]*(unscaled.st[nbdadata@status==1]*exp(socialLP[nbdadata@status==1])))/totalRate[nbdadata@status==1] - tapply(nbdadata@intILVdata[,i]*unscaled.st*(exp(socialLP))*presentInDiffusion, INDEX=nbdadata@event.id, FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id, FUN=sum))
+      social_grad[i] <- sum((nbdadata@intILVdata[nbdadata@status==1,i]*(unscaled.st[nbdadata@status==1]*exp(socialLP[nbdadata@status==1])))/totalRate[nbdadata@status==1] - tapply(nbdadata@intILVdata[includeInOADA,i]*unscaled.st*(exp(socialLP))*presentInDiffusion, INDEX=nbdadata@event.id[includeInOADA], FUN=sum)/tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum))
       # variable for solver * solver social rate / solver total rate
       # variable for all individiduals * social rate, summed over all acquisition events / total naive rate
     } # closes loop through social var

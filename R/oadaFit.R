@@ -231,7 +231,7 @@ setMethod("initialize",
               if(gradient){
                 try(fit1<-nlminb(start=startValue, objective= oadaLikelihood,gradient= gradient_fn, lower=lower, upper=upper,nbdadata=nbdadata,control=list(iter.max=iterations)));
               }else{
-                try(fit1<-nlminb(start=startValue, objective= oadaLikelihood,lower=lower, upper=upper,nbdadata=nbdadata,type=type,control=list(iter.max=iterations)));
+                try(fit1<-nlminb(start=startValue, objective= oadaLikelihood,lower=lower, upper=upper,nbdadata=nbdadata,control=list(iter.max=iterations)));
               }
               if(is.null(fit1)){
                 print("Error in likeihood optimization");

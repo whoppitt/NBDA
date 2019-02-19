@@ -278,10 +278,10 @@ setMethod("initialize",
 		}
 
 		if(aicUse=="aic"){
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aic),]
 		}else{
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aicc),]
 		}
 
@@ -384,7 +384,7 @@ variableSupport<-function(nbdaAICtable,typeFilter=NULL,baselineFilter=NULL,inclu
   #Set up a vector to record the support for each variable
   support<-rep(NA,dim(nbdaAICtable@constraintsVectMatrix)[2])
   for(i in 1:dim(nbdaAICtable@constraintsVectMatrix)[2]){
-    support[i]<-sum(printTable$AkaikeWeight[printTable[,(i+3)]!=0])
+    support[i]<-sum(printTable$AkaikeWeight[printTable[,(i+4)]!=0])
   }
   #Convert support into a matrix so I can add dimnames
   support<-rbind(support)

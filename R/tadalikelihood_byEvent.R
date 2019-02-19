@@ -1,14 +1,14 @@
 #Editted for constrained model
 
-tadaLikelihood <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
+tadaLikelihood_byevent <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
 
 if(is.character(nbdadata)){
 
-		totalLikelihood <- 0;
+		totalLikelihood <- NULL;
 
 		for(i in 1:length(nbdadata)){
 			subdata <- eval(as.name(nbdadata[i]));
-			totalLikelihood <- totalLikelihood+ tadaLikelihood(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+			totalLikelihood <- rbind(totalLikelihood,tadaLikelihood_byevent(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars));
 			}
 
 		return(totalLikelihood);
@@ -91,8 +91,12 @@ if(is.character(nbdadata)){
 	#This is the total relative rate from OADA- the beaseline hazard is dealt with in a separate component of the logLik here
 	totalRate <- (exp(asocialLP) + exp(socialLP)*unscaled.st)* presentInDiffusion
 
+	#This allows us to use tapply and return the correct order of events
+	event.id_factor<-factor(nbdadata@event.id, levels=unique(nbdadata@event.id))
+
 	#Take logs and add across acquisition events
-	lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
+	lComp1_byevent <- log(tapply(totalRate*nbdadata@status, INDEX=event.id_factor, FUN=sum))# group by skilled
+	lComp1_byevent[length(lComp1_byevent)]<-0
 
 	solveTimes<-nbdadata@TADAtime2[nbdadata@status==1]
 
@@ -114,7 +118,8 @@ if(is.character(nbdadata)){
 	  solveHazards<-hazFunct(hazFunctPars,solveTimes)
 	}
 
-	lComp2<-sum(log(solveHazards))
+	lComp2_byevent<-c(log(solveHazards),0)
+
 	#log baseline hazards for solvers at times of solving
 
 	#lComp3
@@ -141,10 +146,10 @@ if(is.character(nbdadata)){
 	  cumHazDiff<-cumHazards1-cumHazards2
 	}
 
-	lComp3.1 <- tapply(totalRate*cumHazDiff, INDEX=nbdadata@event.id, FUN=sum)
-  lComp3.2 <- sum(lComp3.1)
+	lComp3_byevent <- tapply(totalRate*cumHazDiff, INDEX=event.id_factor, FUN=sum)
+  loglik_byevent<-lComp2_byevent+lComp2_byevent+lComp3_byevent
 
-	negloglik <- -lComp1-lComp2-lComp3.2
+	negloglik <- data.frame(negLogSolverRelRate=-lComp1_byevent,negLogSolverBaseline=-lComp2_byevent,nonSolvingCumHazard=-lComp3_byevent,negLogLik=-loglik_byevent)
 
 	return(negloglik)
 	}

@@ -110,7 +110,7 @@ for(i in 1:length(xVals)){
     #  modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,startValue = startVals)
     #}
 
-    if(class(model)=="oadaFit"){
+    if(class(model)=="oadaFit"|class(model)=="oadaFit_coxme"){
       noHazFunctPars<-0
       modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
     }
@@ -232,7 +232,7 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
   }
 
   #Fit the model
-  if(class(model)=="oadaFit")    modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
+  if(class(model)=="oadaFit"|class(model)=="oadaFit_coxme")    modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
   if(class(model)=="tadaFit")    modelTemp<-tadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,baseline=model@baseline,noHazFunctPars=model@noHazFunctPars,hazFunct=model@hazFunct,cumHaz=model@cumHaz)
 
   profLik<-modelTemp@loglik
@@ -345,7 +345,7 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
   }
 
   #Fit the model
-  if(class(model)=="oadaFit")    modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
+  if(class(model)=="oadaFit"|class(model)=="oadaFit_coxme")    modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
   if(class(model)=="tadaFit")    modelTemp<-tadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,baseline=model@baseline,noHazFunctPars=model@noHazFunctPars,hazFunct=model@hazFunct,cumHaz=model@cumHaz)
   profLik<-modelTemp@loglik
 

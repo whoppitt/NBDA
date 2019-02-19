@@ -82,7 +82,7 @@ if(is.na(timeAcq[1])){
 		# generate a matrix that contains the status of each individual at each acquisition event
 		statusMatrix <- matrix(0, nrow=dim(assMatrix)[2], ncol=1+nAcq)  # a matrix with as many rows as indivs and as many columns as acquisition events PLUS one for the demonstrators
 		# create a list vector to hold the index of naive individuals after each acquisition event
-		naive.id <- vector(mode="list", length=nAcq)
+		naive.id <-naive.id.names<- vector(mode="list", length=nAcq)
 
 		# if there are seeded demonstrators add the vector (which should have length dim(assMatrix)[1]) to the first column of the statusMatrix to show which individuals set out as skilled (status of 1)
 		if(is.null(demons)){
@@ -176,12 +176,13 @@ if(is.na(timeAcq[1])){
 			#Now correct the availabilityMatrix such that individuals who are not present for an event cannot be learned from
 			availabilityMatrix<-availabilityMatrix*presenceMatrix
 
-				naive.id[[i]] <- which(statusMatrix[,i]==0) # index for naive individuals before the ith acquisition event
+			naive.id[[i]] <- which(statusMatrix[,i]==0) # index for naive individuals before the ith acquisition event
+#		  naive.id.names[[i]]<-id[which(statusMatrix[,i]==0)]
 
 				} # closes the i loop - nAcq (k is i or 1)
 				} # closes the if statement for nAcq!=0
 
-		if(is.na(id[1])) {id <- paste(label,c(unlist(naive.id)), sep="_")} # id of naive individuals before each acquisition event, including demonstrators
+    id <- paste(label,c(unlist(naive.id)), sep="_") # id of naive individuals before each acquisition event, including demonstrators
 
 		naive <- dim(assMatrix)[1]-apply(statusMatrix, 2, sum) # number of naive individuals remaining after each acq event
 
@@ -237,9 +238,9 @@ if(is.na(timeAcq[1])){
 					ilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
 				}else{
 					if(asocialTreatment=="constant"){
-						ilv1 <- rbind(asoc_ilv.array[nonlearners, 1,])
+						ilv1 <- cbind(asoc_ilv.array[nonlearners, 1,])
 					}else{
-						ilv1 <- rbind(asoc_ilv.array[nonlearners, event,])
+						ilv1 <- cbind(asoc_ilv.array[nonlearners, event,])
 					}
 				}# this makes sure the right column out of the asoc.array is used
 
@@ -247,9 +248,9 @@ if(is.na(timeAcq[1])){
 				  intilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
 				}else{
 				  if(asocialTreatment=="constant"){
-				    intilv1 <- rbind(int_ilv.array[nonlearners, 1,])
+				    intilv1 <- cbind(int_ilv.array[nonlearners, 1,])
 				  }else{
-				    intilv1 <- rbind(int_ilv.array[nonlearners, event,])
+				    intilv1 <- cbind(int_ilv.array[nonlearners, event,])
 				  }
 				}# this makes sure the right column out of the asoc.array is used
 
@@ -257,9 +258,9 @@ if(is.na(timeAcq[1])){
 				  multiilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
 				}else{
 				  if(asocialTreatment=="constant"){
-				    multiilv1 <- rbind(multi_ilv.array[nonlearners, 1,])
+				    multiilv1 <- cbind(multi_ilv.array[nonlearners, 1,])
 				  }else{
-				    multiilv1 <- rbind(multi_ilv.array[nonlearners, event,])
+				    multiilv1 <- cbind(multi_ilv.array[nonlearners, event,])
 				  }
 				}# this makes sure the right column out of the asoc.array is used
 
@@ -267,9 +268,9 @@ if(is.na(timeAcq[1])){
 				  randomeffect1 <-cbind("REabsent"=rep(0,length(nonlearners)))
 				}else{
 				  if(asocialTreatment=="constant"){
-				    randomeffect1 <- rbind(random_effects.array[nonlearners, 1,])
+				    randomeffect1 <- cbind(random_effects.array[nonlearners, 1,])
 				  }else{
-				    randomeffect1 <- rbind(random_effects.array[nonlearners, event,])
+				    randomeffect1 <- cbind(random_effects.array[nonlearners, event,])
 				  }
 				}# this makes sure the right column out of the asoc.array is used
 
@@ -601,13 +602,14 @@ callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_il
 
       stMetric[time2==event,] <- temp.stMetric
 
+
       if(asoc_ilv[1]=="ILVabsent"){
         ilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
       }else{
         if(asocialTreatment=="constant"){
-          ilv1 <- rbind(asoc_ilv.array[nonlearners, 1,])
+          ilv1 <- cbind(asoc_ilv.array[nonlearners, 1,])
         }else{
-          ilv1 <- rbind(asoc_ilv.array[nonlearners, event,])
+          ilv1 <- cbind(asoc_ilv.array[nonlearners, event,])
         }
       }# this makes sure the right column out of the asoc.array is used
 
@@ -615,9 +617,9 @@ callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_il
         intilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
       }else{
         if(asocialTreatment=="constant"){
-          intilv1 <- rbind(int_ilv.array[nonlearners, 1,])
+          intilv1 <- cbind(int_ilv.array[nonlearners, 1,])
         }else{
-          intilv1 <- rbind(int_ilv.array[nonlearners, event,])
+          intilv1 <- cbind(int_ilv.array[nonlearners, event,])
         }
       }# this makes sure the right column out of the asoc.array is used
 
@@ -625,9 +627,9 @@ callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_il
         multiilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
       }else{
         if(asocialTreatment=="constant"){
-          multiilv1 <- rbind(multi_ilv.array[nonlearners, 1,])
+          multiilv1 <- cbind(multi_ilv.array[nonlearners, 1,])
         }else{
-          multiilv1 <- rbind(multi_ilv.array[nonlearners, event,])
+          multiilv1 <- cbind(multi_ilv.array[nonlearners, event,])
         }
       }# this makes sure the right column out of the asoc.array is used
 
@@ -635,11 +637,12 @@ callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_il
         randomeffect1 <-cbind("REabsent"=rep(0,length(nonlearners)))
       }else{
         if(asocialTreatment=="constant"){
-          randomeffect1 <- rbind(random_effects.array[nonlearners, 1,])
+          randomeffect1 <- cbind(random_effects.array[nonlearners, 1,])
         }else{
-          randomeffect1 <- rbind(random_effects.array[nonlearners, event,])
+          randomeffect1 <- cbind(random_effects.array[nonlearners, event,])
         }
       }# this makes sure the right column out of the asoc.array is used
+
 
 
 
