@@ -4,7 +4,12 @@
 #Instead the user can input their own parameter values, e.g. the upper or lower confidence intervals for a specific parameter, and the MLEs for the other parameters. In which case nbdadata must also be provided
 #The function works for multiple diffusions
 
-nbdaPropSolveByST.byevent<-oadaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",retainInt=NULL){
+#Now works for both TADA and OADA, but the first function is kept as a duplicate function for backwards compatibility
+oadaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",retainInt=NULL){
+  return (nbdaPropSolveByST.byevent(par=par,nbdadata=nbdadata,model=model,type=type,retainInt=retainInt))
+}
+
+nbdaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",retainInt=NULL){
   if(is.null(model)){
     if(is.null(par)|is.null(nbdadata)){
       return("Please provide a model or input parameter values with data")
@@ -20,6 +25,15 @@ nbdaPropSolveByST.byevent<-oadaPropSolveByST.byevent<-function(par=NULL,nbdadata
       nbdadata<-model@nbdadata;
       type<-model@type
       nbdaMultiDiff<-model@nbdaMultiDiff
+
+      if(class(model)=="tadaFit"){
+
+        if(model@baseline=="constant") noHazFunctPars<-1
+        if(model@baseline=="gamma") noHazFunctPars<-2
+        if(model@baseline=="weibull") noHazFunctPars<-2
+
+        par<-par[-(1:noHazFunctPars)]
+      }
   }
   parVect<-par
 
@@ -61,7 +75,11 @@ nbdaPropSolveByST.byevent<-oadaPropSolveByST.byevent<-function(par=NULL,nbdadata
     if(nbdadata@int_ilv[1]=="ILVabsent") noILVint<-0
     if(nbdadata@multi_ilv[1]=="ILVabsent") noILVmulti<-0
 
-    datalength <- length(nbdadata@id) #ILV effects on social transmission
+    datalength <- dim(nbdadata@stMetric)[1]
+
+    #assign different parameter values to the right vectors
+
+
 
     #Extract vector giving which naive individuals were present in the diffusion for each acqusition event
     presentInDiffusion<-nbdadata@ presentInDiffusion
@@ -244,8 +262,12 @@ nbdaPropSolveByST.byevent<-oadaPropSolveByST.byevent<-function(par=NULL,nbdadata
 #By default we can exclude events that we know must have been innovations (i.e. the first individual to learn in each diffusion)
 #The user can specify how many events were innovations, otherwise the code assumes one innovation for every diffusion in which there were no demostrators present at the start
 
-oadaPropSolveByST<-nbdaPropSolveByST<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",exclude.innovations=T,innovations=NULL){
-  byEvent<-oadaPropSolveByST.byevent(par=par, nbdadata=nbdadata, model=model, type=type)
+oadaPropSolveByST<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",exclude.innovations=T,innovations=NULL){
+ return(nbdaPropSolveByST(par=par,nbdadata=nbdadata,model=model,type=type,exclude.innovations=exclude.innovations,innovations=innovations))
+}
+
+nbdaPropSolveByST<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",exclude.innovations=T,innovations=NULL){
+  byEvent<-nbdaPropSolveByST.byevent(par=par, nbdadata=nbdadata, model=model, type=type)
   #The remainder calculates the number of definite innovations if not specified by the user. We assume any diffusion without demonstrators had an innovator included in the learning events
     if(is.null(model)){
     if(is.null(par)|is.null(nbdadata)){
