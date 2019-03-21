@@ -177,12 +177,13 @@ setMethod("initialize",
                   availabilityMatrix<-availabilityMatrix*presenceMatrix
 
                   naive.id[[i]] <- which(statusMatrix[,i]==0) # index for naive individuals before the ith acquisition event
-                  #		  naive.id.names[[i]]<-id[which(statusMatrix[,i]==0)]
 
                 } # closes the i loop - nAcq (k is i or 1)
               } # closes the if statement for nAcq!=0
 
-              id <- paste(label,c(unlist(naive.id)), sep="_") # id of naive individuals before each acquisition event, including demonstrators
+
+
+              if(is.na(id[1])) {id <- paste(label,c(unlist(naive.id)), sep="_")} # id of naive individuals before each acquisition event, including demonstrators
 
               naive <- dim(assMatrix)[1]-apply(statusMatrix, 2, sum) # number of naive individuals remaining after each acq event
 
@@ -585,92 +586,98 @@ setMethod("initialize",
 
                 learner <- orderAcq[event] # learner is individual id of the animal that learned AT an event
                 nonlearners <- naive.id[[event]] # nonlearners are individual id of the animals that were naive BEFORE an event
-                status <- c(status, statusMatrix[unlist(naive.id[[event]]), min(nAcq+1,event+1)])
-                presentInDiffusion<-c(presentInDiffusion,presenceMatrix[unlist(naive.id[[event]]), min(nAcq+1,event+1)])
 
-                temp.stMetric <- vector() # reset this before the metrics for each event are calculated
+                if(length(nonlearners)>0){
+                  #If everyone has learned by the final period of a TADA (i.e. up to endTime) the next section triggers errors- and we do not need a final period
 
-                for (nonlearner in nonlearners){
+                   status <- c(status, statusMatrix[unlist(naive.id[[event]]), min(nAcq+1,event+1)])
+                   presentInDiffusion<-c(presentInDiffusion,presenceMatrix[unlist(naive.id[[event]]), min(nAcq+1,event+1)])
 
-                  # stMetric is the total assoc of the individuals that did NOT learn by that acquisition event, with all other already-informed individuals
-                  m1 <- matrix(data=assMatrix[nonlearner,,], nrow=dim(assMatrix)[3], byrow=T) # matrix1
-                  m2 <- (weights*statusMatrix[,event])*t(m1) # matrix2
-                  v1 <- apply(X=m2, MARGIN=2, FUN=sum) # vector1 of rowsums
-                  temp.stMetric <- rbind(temp.stMetric, v1)
+                   temp.stMetric <- vector() # reset this before the metrics for each event are calculated
 
-                } # closes nonlearner loop for MATRIX stMetric
+                   for (nonlearner in nonlearners){
 
-           stMetric[time2==event,] <- temp.stMetric
+                     # stMetric is the total assoc of the individuals that did NOT learn by that acquisition event, with all other already-informed individuals
+                     m1 <- matrix(data=assMatrix[nonlearner,,], nrow=dim(assMatrix)[3], byrow=T) # matrix1
+                     m2 <- (weights*statusMatrix[,event])*t(m1) # matrix2
+                     v1 <- apply(X=m2, MARGIN=2, FUN=sum) # vector1 of rowsums
+                     temp.stMetric <- rbind(temp.stMetric, v1)
 
-                if(asoc_ilv[1]=="ILVabsent"){
-                  ilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
-                }else{
-                  if(asocialTreatment=="constant"){
-                    ilv1 <- matrix(asoc_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
-                  }else{
-                    ilv1 <- matrix(asoc_ilv.array[nonlearners, event,],nrow=length(nonlearners))
-                  }
-                }# this makes sure the right column out of the asoc.array is used
+                   } # closes nonlearner loop for MATRIX stMetric
 
-                if(int_ilv[1]=="ILVabsent"){
-                  intilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
-                }else{
-                  if(asocialTreatment=="constant"){
-                    intilv1 <- matrix(int_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
-                  }else{
-                    intilv1 <- matrix(int_ilv.array[nonlearners, event,],nrow=length(nonlearners))
-                  }
-                }# this makes sure the right column out of the asoc.array is used
-
-                if(multi_ilv[1]=="ILVabsent"){
-                  multiilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
-                }else{
-                  if(asocialTreatment=="constant"){
-                    multiilv1 <- matrix(multi_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
-                  }else{
-                    multiilv1 <- matrix(multi_ilv.array[nonlearners, event,],nrow=length(nonlearners))
-                  }
-                }# this makes sure the right column out of the asoc.array is used
-
-                if(random_effects[1]=="REabsent"){
-                  randomeffect1 <-cbind("REabsent"=rep(0,length(nonlearners)))
-                }else{
-                  if(asocialTreatment=="constant"){
-                    randomeffect1 <- matrix(random_effects.array[nonlearners, 1,],nrow=length(nonlearners))
-                  }else{
-                    randomeffect1 <- matrix(random_effects.array[nonlearners, event,],nrow=length(nonlearners))
-                  }
-                }# this makes sure the right column out of the asoc.array is used
+                   stMetric[time2==event,] <- temp.stMetric
 
 
+                   if(asoc_ilv[1]=="ILVabsent"){
+                     ilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
+                   }else{
+                     if(asocialTreatment=="constant"){
+                       ilv1 <- matrix(asoc_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
+                     }else{
+                       ilv1 <- matrix(asoc_ilv.array[nonlearners, event,],nrow=length(nonlearners))
+                     }
+                   }# this makes sure the right column out of the asoc.array is used
+
+                   if(int_ilv[1]=="ILVabsent"){
+                     intilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
+                   }else{
+                     if(asocialTreatment=="constant"){
+                       intilv1 <- matrix(int_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
+                     }else{
+                       intilv1 <- matrix(int_ilv.array[nonlearners, event,],nrow=length(nonlearners))
+                     }
+                   }# this makes sure the right column out of the asoc.array is used
+
+                   if(multi_ilv[1]=="ILVabsent"){
+                     multiilv1 <-cbind("ILVabsent"=rep(0,length(nonlearners)))
+                   }else{
+                     if(asocialTreatment=="constant"){
+                       multiilv1 <- matrix(multi_ilv.array[nonlearners, 1,],nrow=length(nonlearners))
+                     }else{
+                       multiilv1 <- matrix(multi_ilv.array[nonlearners, event,],nrow=length(nonlearners))
+                     }
+                   }# this makes sure the right column out of the asoc.array is used
+
+                   if(random_effects[1]=="REabsent"){
+                     randomeffect1 <-cbind("REabsent"=rep(0,length(nonlearners)))
+                   }else{
+                     if(asocialTreatment=="constant"){
+                       randomeffect1 <- matrix(random_effects.array[nonlearners, 1,],nrow=length(nonlearners))
+                     }else{
+                       randomeffect1 <- matrix(random_effects.array[nonlearners, event,],nrow=length(nonlearners))
+                     }
+                   }# this makes sure the right column out of the asoc.array is used
 
 
-                asocILVdata.naive <- rbind(asocILVdata.naive, ilv1)
-                if(asoc_ilv[1]=="ILVabsent"){
-                  attr(asocILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
-                }else{
-                  attr(asocILVdata.naive, "dimnames") <- list(NULL,asoc_ilv)
-                }
 
-                intILVdata.naive <- rbind(intILVdata.naive, intilv1)
-                if(int_ilv[1]=="ILVabsent"){
-                  attr(intILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
-                }else{
-                  attr(intILVdata.naive, "dimnames") <- list(NULL,int_ilv)
-                }
 
-                multiILVdata.naive <- rbind(multiILVdata.naive, multiilv1)
-                if(multi_ilv[1]=="ILVabsent"){
-                  attr(multiILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
-                }else{
-                  attr(multiILVdata.naive, "dimnames") <- list(NULL,multi_ilv)
-                }
-                randomEffectdata.naive <- rbind(randomEffectdata.naive, randomeffect1)
-                if(random_effects[1]=="REabsent"){
-                  attr(randomEffectdata.naive, "dimnames") <- list(NULL,"REabsent")
-                }else{
-                  attr(randomEffectdata.naive, "dimnames") <- list(NULL,random_effects)
-                }
+                   asocILVdata.naive <- rbind(asocILVdata.naive, ilv1)
+                   if(asoc_ilv[1]=="ILVabsent"){
+                     attr(asocILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
+                   }else{
+                     attr(asocILVdata.naive, "dimnames") <- list(NULL,asoc_ilv)
+                   }
+
+                   intILVdata.naive <- rbind(intILVdata.naive, intilv1)
+                   if(int_ilv[1]=="ILVabsent"){
+                     attr(intILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
+                   }else{
+                     attr(intILVdata.naive, "dimnames") <- list(NULL,int_ilv)
+                   }
+
+                   multiILVdata.naive <- rbind(multiILVdata.naive, multiilv1)
+                   if(multi_ilv[1]=="ILVabsent"){
+                     attr(multiILVdata.naive, "dimnames") <- list(NULL,"ILVabsent")
+                   }else{
+                     attr(multiILVdata.naive, "dimnames") <- list(NULL,multi_ilv)
+                   }
+                   randomEffectdata.naive <- rbind(randomEffectdata.naive, randomeffect1)
+                   if(random_effects[1]=="REabsent"){
+                     attr(randomEffectdata.naive, "dimnames") <- list(NULL,"REabsent")
+                   }else{
+                     attr(randomEffectdata.naive, "dimnames") <- list(NULL,random_effects)
+                   }
+                }#closes if(length(nonlearners)>0) loop
 
               } # closes event loop
 
