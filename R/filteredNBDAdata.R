@@ -10,11 +10,11 @@
 filteredNBDAdata<-function(nbdadata, filter, exclude){
 
   if(!is.character(filter)) return("For filter please enter a string giving a vector within the nbdaData object to be used as a filter")
-  
+
   filterVect <- eval(parse(text=paste("nbdadata@",filter,sep="")));
-  
+
   if(length(filterVect)!=length(nbdadata@id)) return(paste("Please provide a filter of length",length(nbdadata@id)))
-  
+
   for(i in 1:length(exclude)){
     nbdadata@label<-nbdadata@label[filterVect!=exclude[i]]
     nbdadata@event.id<-nbdadata@event.id[filterVect!=exclude[i]]
@@ -27,10 +27,11 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
     nbdadata@asocILVdata<-as.matrix(nbdadata@asocILVdata[filterVect!=exclude[i],])
     nbdadata@intILVdata<-as.matrix(nbdadata@intILVdata[filterVect!=exclude[i],])
     nbdadata@multiILVdata<-as.matrix(nbdadata@multiILVdata[filterVect!=exclude[i],])
+    nbdadata@randomEffectdata<-as.matrix(nbdadata@randomEffectdata[filterVect!=exclude[i],])
     nbdadata@offsetCorrection<-as.matrix(nbdadata@offsetCorrection[filterVect!=exclude[i],])
     filterVect<-filterVect[filterVect!=exclude[i]]
   }
-  
+
   #Now we need to remove the non-learner data for any events that have been removed
   #Build an index saying if each line should be included
   includeIndex<-rep(NA,length(nbdadata@event.id))
@@ -49,7 +50,8 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
   nbdadata@asocILVdata<-as.matrix(nbdadata@asocILVdata[includeIndex,])
   nbdadata@intILVdata<-as.matrix(nbdadata@intILVdata[includeIndex,])
   nbdadata@multiILVdata<-as.matrix(nbdadata@multiILVdata[includeIndex,])
+  nbdadata@randomEffectdata<-as.matrix(nbdadata@randomEffectdata[includeIndex,])
   nbdadata@offsetCorrection<-as.matrix(nbdadata@offsetCorrection[includeIndex,])
-  
+
 return(nbdadata)
 }
