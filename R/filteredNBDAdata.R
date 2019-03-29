@@ -15,6 +15,8 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
 
   if(length(filterVect)!=length(nbdadata@id)) return(paste("Please provide a filter of length",length(nbdadata@id)))
 
+  nbdadataOld<-nbdadata
+
   for(i in 1:length(exclude)){
     nbdadata@label<-nbdadata@label[filterVect!=exclude[i]]
     nbdadata@event.id<-nbdadata@event.id[filterVect!=exclude[i]]
@@ -52,6 +54,13 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
   nbdadata@multiILVdata<-as.matrix(nbdadata@multiILVdata[includeIndex,])
   nbdadata@randomEffectdata<-as.matrix(nbdadata@randomEffectdata[includeIndex,])
   nbdadata@offsetCorrection<-as.matrix(nbdadata@offsetCorrection[includeIndex,])
+
+  dimnames(nbdadata@randomEffectdata)<-dimnames(nbdadataOld@randomEffectdata)
+  dimnames(nbdadata@asocILVdata)<-dimnames(nbdadataOld@asocILVdata)
+  dimnames(nbdadata@intILVdata)<-dimnames(nbdadataOld@intILVdata)
+  dimnames(nbdadata@multiILVdata)<-dimnames(nbdadataOld@multiILVdata)
+
+
 
 return(nbdadata)
 }
