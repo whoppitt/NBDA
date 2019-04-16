@@ -166,12 +166,22 @@ setMethod("initialize",
 
                   statusMatrix[orderAcq[i],c((i+1):(nAcq+1))] <- 1 # give the individuals that acquired the trait a status of 1 and carry skilled status (1) through to all following acquisition events
 
+  #WH this section seems wrong- I am attempting to correct it below
                   # correct the status of the individuals that can be learned from if there are ties, because in that case they will not be the same as the skilled individuals
+   #               if (ties[i]==0){
+   #                 availabilityMatrix[orderAcq[i],] <- statusMatrix[orderAcq[i],]
+   #               } else {
+   #                 availabilityMatrix[orderAcq[i],] <- ifelse(length(orderAcq[i-1]), availabilityMatrix[orderAcq[i-1],], statusMatrix[orderAcq[i],])
+   #               } # closes ties if statement
+
+                  # if the event is recorded as tied with the previous event (ties[i]==1), it means that whoever learned in the previous event cannot be learned from for this event
+                  # therefore if a tie is present for event i, we do not update the availabilityMatrix to match the statusMatrix
                   if (ties[i]==0){
-                    availabilityMatrix[orderAcq[i],] <- statusMatrix[orderAcq[i],]
+                    availabilityMatrix[,i] <- statusMatrix[,i]
                   } else {
-                    availabilityMatrix[orderAcq[i],] <- ifelse(length(orderAcq[i-1]), availabilityMatrix[orderAcq[i-1],], statusMatrix[orderAcq[i],])
+                    availabilityMatrix[,i] <- availabilityMatrix[,i-1]
                   } # closes ties if statement
+
 
                   #Now correct the availabilityMatrix such that individuals who are not present for an event cannot be learned from
                   availabilityMatrix<-availabilityMatrix*presenceMatrix
@@ -179,6 +189,7 @@ setMethod("initialize",
                   naive.id[[i]] <- which(statusMatrix[,i]==0) # index for naive individuals before the ith acquisition event
 
                 } # closes the i loop - nAcq (k is i or 1)
+                availabilityMatrix[,nAcq+1] <- statusMatrix[,nAcq+1]
               } # closes the if statement for nAcq!=0
 
 
@@ -225,9 +236,9 @@ setMethod("initialize",
 
                   for (nonlearner in nonlearners){
 
-                    # stMetric is the total assoc of the individuals that did NOT learn at that acquisition event, with all other already-informed individuals
+                    # stMetric is the total assoc of the individuals that had NOT learned prior to that acquisition event, with all other already-informed individuals
                     m1 <- matrix(data=assMatrix[nonlearner,,], nrow=dim(assMatrix)[3], byrow=T) # matrix1
-                    m2 <- (weights*statusMatrix[,event])*t(m1) # matrix2
+                    m2 <- (weights*availabilityMatrix[,event])*t(m1) # matrix2
                     v1 <- apply(X=m2, MARGIN=2, FUN=sum) # vector1 of rowsums
                     temp.stMetric <- rbind(temp.stMetric, v1)
 
