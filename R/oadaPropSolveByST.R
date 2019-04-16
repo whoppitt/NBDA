@@ -292,7 +292,7 @@ nbdaPropSolveByST<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",excl
     innovations<-0
     for(i in 1:length(nbdaMultiDiff)){
       subdata <- eval(as.name(nbdaMultiDiff[i]));
-      innovations<-innovations+is.na(subdata@demons)*1
+      innovations<-innovations+is.na(subdata@demons[1])*1
     }
   }
   }
