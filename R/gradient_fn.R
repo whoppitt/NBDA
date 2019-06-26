@@ -1,11 +1,7 @@
-#Editted for unconstrained model v1.5 Nov 2018
-
-#Modified by Will 11/4/17- simplified to be applied to all asocial variables in the object
-#Constrained version dropped on 11/06/18
-
 gradient_fn <- function(parVect, nbdadata){
 
-if(is.character(nbdadata)){
+
+  if(is.character(nbdadata)){
 
 		totalGradient <- rep(0, length(parVect));
 
@@ -18,6 +14,12 @@ if(is.character(nbdadata)){
 
 }else{
 
+  #If there are trueTies use the numerical version
+  if(!is.null(nbdadata@trueTies[[1]])){
+
+    return(grad(oadaLikelihood,parVect,nbdadata=nbdadata))
+
+  }else{
 
 	#calculate the number of each type of parameter
 	noSParam <- dim(nbdadata@stMetric)[2] #s parameters
@@ -145,7 +147,7 @@ if(nbdadata@int_ilv[1]!="ILVabsent"){
 
 gradient <- c(s_grad, asocial_grad, social_grad, multi_grad)
 return(-gradient)
-}
+}}
 } # end function
 
 

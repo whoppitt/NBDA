@@ -84,13 +84,30 @@ if(is.character(nbdadata)){
 	#The totalRate is set to zero for naive individuals not in the diffusion for a given event
 	totalRate <- (exp(asocialLP) + exp(socialLP)*unscaled.st)* presentInDiffusion
 
-	#Take logs and add across acquisition events
-	lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
+	#If there are no trueTies calculate logLik as usual
+	if(is.null(nbdadata@trueTies[[1]])){
 
-	lComp2.1 <- tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # check this works. this is total rate per event across all naive id
-	lComp2.2 <- sum(log(lComp2.1))
+	  	#Take logs and add across acquisition events
+	  lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
 
-	negloglik <- lComp2.2 - lComp1
+	  lComp2.1 <- tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # this is total rate per event across all naive id
+
+	  lComp2.2 <- sum(log(lComp2.1))
+	}else{
+	  #If there are trueTies calculate logLik with the OADA expanded version of the Efron method for tied data in a Cox model
+
+	  #for lComp2 this simply requires use of the nbdadata@trueTieAdjustmentWeight to weight individuals in this component of the likelihood
+	  lComp2.1 <- tapply(totalRate*nbdadata@trueTieAdjustmentWeight, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # this is total rate per event across all naive id
+
+	  lComp2.2 <- sum(log(lComp2.1))
+
+	  #lComp1 is trickier since we need to average each tied individual's rates over the events they might have learned in, to allow for the different orders of learning that are possible
+
+	  lComp1 <- sum(log(tapply(totalRate[nbdadata@trueTieAdjustedStatus>0],nbdadata@idname[nbdadata@trueTieAdjustedStatus>0],mean)))
+
+	}
+
+	  negloglik <- lComp2.2 - lComp1
 
 	return(negloglik)
 	}

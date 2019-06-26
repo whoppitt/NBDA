@@ -335,6 +335,13 @@ setMethod("initialize",
               }
               }else
                 {
+
+                if(!is.null(nbdadataTemp@trueTies[[1]])){
+                    print("ERROR: SL dominant model not possible for data with true ties, since it requires certainty about who learned each event")
+                    return(NULL)
+                }
+
+
                 # If SLdom is T we fit a model in which social transmission is always dominant. i.e. asocial learning only works when
                 # everyone has connection 0. To enable this the first s parameter is set to one and the other s parameters are estimated relative to it
 

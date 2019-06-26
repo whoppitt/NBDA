@@ -1,14 +1,8 @@
-#Editted for constrained model
-
-#debugged by Will on 16/8/16
-#editted to take dynamic networks on 6/9/16- tested with static networks, needs testing with dynamic
-#Also deleted groupid, taskid, group, task, groupvect, taskvect and diffVect as I believe these are no longer needed in the streamlined version
-
 # If timeAcq are specified an object for fitting TADA is created, else an OADA object is created
 # Else we run into problems with the fact that TADA object slots can be one line longer if not everyone learns
 # I am adapting the OADA functions so they work the same on either object
 
-setClass("nbdaData", representation(label="vector", idname="vector", assMatrix="array", asoc_ilv="vector", int_ilv="vector",multi_ilv="vector",random_effects="vector",orderAcq="vector", timeAcq="vector",endTime="numeric",updateTimes="vector", ties="vector", trueTies="list", demons="vector", weights="vector",statusMatrix="matrix", availabilityMatrix="matrix",presenceMatrix="matrix", event.id="vector", id="vector", time1="vector", time2="vector",TADAtime1="vector", TADAtime2="vector", status="vector", presentInDiffusion ="vector", assMatrixIndex="vector",asocialTreatment="character", stMetric="matrix", asocILVdata="matrix",intILVdata="matrix",multiILVdata="matrix",offsetCorrection="matrix",randomEffectdata="matrix"));
+setClass("nbdaData", representation(label="vector", idname="vector", assMatrix="array", asoc_ilv="vector", int_ilv="vector",multi_ilv="vector",random_effects="vector",orderAcq="vector", timeAcq="vector",endTime="numeric",updateTimes="vector", ties="vector", trueTies="list", demons="vector", weights="vector",statusMatrix="matrix", trueTieAdjustedStatusMatrix="matrix",availabilityMatrix="matrix",presenceMatrix="matrix", event.id="vector", id="vector", time1="vector", time2="vector",TADAtime1="vector", TADAtime2="vector", status="vector", trueTieAdjustedStatus="vector", trueTieAdjustmentWeight="vector",presentInDiffusion ="vector", assMatrixIndex="vector",asocialTreatment="character", stMetric="matrix", asocILVdata="matrix",intILVdata="matrix",multiILVdata="matrix",offsetCorrection="matrix",randomEffectdata="matrix"));
 
 setMethod("initialize",
           signature(.Object = "nbdaData"),
@@ -45,7 +39,7 @@ setMethod("initialize",
               totalMetric <- vector() # total association of the individual that DID learn at an acquisition event, with all other individuals
               learnMetric <- vector(); # total associations of the individual that DID learn at an acquisition event, with all other individuals that have already learned
 
-              status <- presentInDiffusion <-vector(); # set up the status vector and presentInDiffusion vector
+              status <- presentInDiffusion <-trueTieAdjustedStatus<-trueTieAdjustmentWeight<-vector(); # set up the status vector, trueTieAdjustedStatus vector and presentInDiffusion vector
 
               # If there is just one asocial variable matrix for all events and times, then you will have a column matrix for each ILV, the length of the number of individuals
               # If there are more than one asocial variable matrices (i.e. time-varying covariates), then you will have a matrix for each ILV, with rows equal to the number of individuals, and columns equal to the number of acquisition events (because in OADA we are constraining this to be the case: ILVs can only change at the same time as acquisition events occur otherwise you can't obtain a marginal likelihood, Will says, only a partial likelihood)
@@ -107,10 +101,6 @@ setMethod("initialize",
 
               asocILVdata.naive <-intILVdata.naive<-multiILVdata.naive<-randomEffectdata.naive<-vector() # this will hold the individual level variables for the naive individuals
 
-              # YOU WILL HAVE TO MAKE THIS WORK EVEN WHEN THERE ARE NO ASOCIAL VARIABLES... THINK ABOUT HOW YOU MIGHT DO THIS 20120822 (Theoni comment)
-              # Will: I just put a dummy asoc variable in at the start with all 0s, when the model is fitted using oadaFit the constraints and offsets vector are
-              # automatically modified to ignore the dummy variable (a zero is appended to the end of each, or 2 zeroes if type=unconstrained is specified)
-
               ############# to prevent errors when nAcq is zero
               if(nAcq==0){
                 learnAsoc <-learnInt<-multiInt<- naive.id <- time1 <- time2 <- stMetric <- NA
@@ -166,14 +156,6 @@ setMethod("initialize",
 
                   statusMatrix[orderAcq[i],c((i+1):(nAcq+1))] <- 1 # give the individuals that acquired the trait a status of 1 and carry skilled status (1) through to all following acquisition events
 
-  #WH this section seems wrong- I am attempting to correct it below
-                  # correct the status of the individuals that can be learned from if there are ties, because in that case they will not be the same as the skilled individuals
-   #               if (ties[i]==0){
-   #                 availabilityMatrix[orderAcq[i],] <- statusMatrix[orderAcq[i],]
-   #               } else {
-   #                 availabilityMatrix[orderAcq[i],] <- ifelse(length(orderAcq[i-1]), availabilityMatrix[orderAcq[i-1],], statusMatrix[orderAcq[i],])
-   #               } # closes ties if statement
-
                   # if the event is recorded as tied with the previous event (ties[i]==1), it means that whoever learned in the previous event cannot be learned from for this event
                   # therefore if a tie is present for event i, we do not update the availabilityMatrix to match the statusMatrix
                   if (ties[i]==0){
@@ -192,11 +174,37 @@ setMethod("initialize",
                 availabilityMatrix[,nAcq+1] <- statusMatrix[,nAcq+1]
               } # closes the if statement for nAcq!=0
 
+              #Now we need to adjust the statusMatrix and availabilityMatrix for true ties so as to implement the NBDA extension of the Efron method for tied data in a Cox model
+              trueTieAdjustedStatusMatrix<-statusMatrix
+              trueTieAdjustedAvailabilityMatrix<-availabilityMatrix
+              if(!is.null(trueTies[[1]])) {
+                #Cycle through ties
+                for(tieNumber in 1: length(trueTies)){
+                  tiedEvents<-trueTies[[tieNumber]]
+                  #Get the change in status over the course of the tie
+                  changeOverTie<-statusMatrix[,tiedEvents[length(tiedEvents)]+1]-statusMatrix[,tiedEvents[1]]
+                  #Cycle through events in the tie
+                  for(tiedEventNumber in 1:(length(tiedEvents))){
+                    trueTieAdjustedStatusMatrix[,tiedEvents[tiedEventNumber]+1]<-statusMatrix[,tiedEvents[1]]+changeOverTie*tiedEventNumber/sum(changeOverTie)
 
+                    #Get the change in availability over the course of the event
+                    changeOverEvent<-availabilityMatrix[,tiedEvents[tiedEventNumber]+1]-availabilityMatrix[,tiedEvents[tiedEventNumber]]
+                    #If this sums to zero then it means there is a tie (not true tie) and that the adjusted availability matrix should not be updated from the last event
+                    if(sum(changeOverEvent)>0){
+                      trueTieAdjustedAvailabilityMatrix[,tiedEvents[tiedEventNumber]+1]<-(availabilityMatrix[,tiedEvents[1]]+changeOverTie*tiedEventNumber/sum(changeOverTie))
+                    }else{
+                      trueTieAdjustedAvailabilityMatrix[,tiedEvents[tiedEventNumber]+1]<-trueTieAdjustedAvailabilityMatrix[,tiedEvents[tiedEventNumber]]
+                    }
+                  }
+                }
+                for (i in 1:nAcq){naive.id[[i]] <- which(trueTieAdjustedStatusMatrix[,i]<1)} # Redo index for naive individuals before the ith acquisition event according to trueTieAdjustedStatusMatrix
+              }
+              availabilityMatrix<-trueTieAdjustedAvailabilityMatrix
 
-              if(is.na(id[1])) {id <- paste(label,c(unlist(naive.id)), sep="_")} # id of naive individuals before each acquisition event, including demonstrators
+        #      if(is.na(id[1])) {id <- paste(label,c(unlist(naive.id)), sep="_")} # id of naive individuals before each acquisition event, including demonstrators
+              id <- paste(label,c(unlist(naive.id)), sep="_")# id of naive individuals before each acquisition event, including demonstrators
 
-              naive <- dim(assMatrix)[1]-apply(statusMatrix, 2, sum) # number of naive individuals remaining after each acq event
+              naive <- dim(assMatrix)[1]-apply(trueTieAdjustedStatusMatrix==1, 2, sum) # number of naive individuals remaining after each acq event
 
 
               # work out the number of association matrices provided and set up stMetric matrix accordingly
@@ -230,6 +238,9 @@ setMethod("initialize",
                   learner <- orderAcq[event] # learner is individual id of the animal that learned AT an event
                   nonlearners <- naive.id[[event]] # nonlearners are individual id of the animals that were naive BEFORE an event
                   status <- c(status, statusMatrix[unlist(naive.id[[event]]), event+1])
+                  trueTieAdjustedStatus<-c(trueTieAdjustedStatus, trueTieAdjustedStatusMatrix[unlist(naive.id[[event]]), event+1])
+                  #The weighting for the OADA Efron tie method requires 1 minus the column before to weight the denominator
+                  trueTieAdjustmentWeight<-c(trueTieAdjustmentWeight,1-trueTieAdjustedStatusMatrix[unlist(naive.id[[event]]), event])
                   presentInDiffusion<-c(presentInDiffusion,presenceMatrix[unlist(naive.id[[event]]), event+1])
 
                   temp.stMetric <- vector() # reset this before the metrics for each event are calculated
@@ -340,10 +351,13 @@ setMethod("initialize",
               if(is.null(offsetCorrection)) offsetCorrection <- cbind(rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]));
               dimnames(offsetCorrection)[2]<-list(c("SocialOffsetCorr","AsocialILVOffsetCorr","InteractionOffsetCorr","MultiplicativeILVOffsetCorr"))
 
-              callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_ilv=asoc_ilv, int_ilv=int_ilv,multi_ilv=multi_ilv,random_effects=random_effects, orderAcq=orderAcq, timeAcq=timeAcq, endTime=endTime,updateTimes=NA, ties=ties, trueTies=trueTies, demons=demons, weights=weights, statusMatrix=statusMatrix, availabilityMatrix=availabilityMatrix, event.id=event.id, id=id, time1=time1, time2=time2, status=status, presentInDiffusion= presentInDiffusion, presenceMatrix = presenceMatrix ,asocialTreatment=asocialTreatment, stMetric=stMetric, asocILVdata=asocILVdata.naive, intILVdata=intILVdata.naive, multiILVdata=multiILVdata.naive,randomEffectdata=randomEffectdata.naive,offsetCorrection=offsetCorrection)
+              callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_ilv=asoc_ilv, int_ilv=int_ilv,multi_ilv=multi_ilv,random_effects=random_effects, orderAcq=orderAcq, timeAcq=timeAcq, endTime=endTime,updateTimes=NA, ties=ties, trueTies=trueTies, demons=demons, weights=weights, statusMatrix=statusMatrix, trueTieAdjustedStatusMatrix=trueTieAdjustedStatusMatrix,availabilityMatrix=availabilityMatrix, event.id=event.id, id=id, time1=time1, time2=time2, status=status, trueTieAdjustedStatus=trueTieAdjustedStatus,trueTieAdjustmentWeight=trueTieAdjustmentWeight,presentInDiffusion= presentInDiffusion, presenceMatrix = presenceMatrix ,asocialTreatment=asocialTreatment, stMetric=stMetric, asocILVdata=asocILVdata.naive, intILVdata=intILVdata.naive, multiILVdata=multiILVdata.naive,randomEffectdata=randomEffectdata.naive,offsetCorrection=offsetCorrection)
             }else
             {
               #TADA version to be inserted here
+
+              #Warn if trueTies are provided
+              if(!is.null(trueTies[[1]])) {print("WARNING: True ties are handled differently in TADA/OADA. Please create a separate object without timeAcq for use in OADA. trueTies need not be specified for TADA.")}
 
               #put the time varying association matrix into an object called assMatrixTV
               if(length(dim(assMatrix))==3){ assMatrixTV<- array(data=assMatrix,dim=c(dim(assMatrix),1))}else{assMatrixTV<-assMatrix}
@@ -703,7 +717,7 @@ setMethod("initialize",
               if(is.null(offsetCorrection)) offsetCorrection <- cbind(rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]),rep(0,dim(asocILVdata.naive)[1]));
               dimnames(offsetCorrection)[2]<-list(c("SocialOffsetCorr","AsocialILVOffsetCorr","InteractionOffsetCorr","MultiplicativeILVOffsetCorr"))
 
-              callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_ilv=asoc_ilv, int_ilv=int_ilv,multi_ilv=multi_ilv,random_effects=random_effects, orderAcq=orderAcq, timeAcq=timeAcq, endTime=endTime,updateTimes=NA, ties=ties, trueTies=trueTies, demons=demons, weights=weights, statusMatrix=statusMatrix, availabilityMatrix=availabilityMatrix, event.id=event.id, id=id, time1=time1, time2=time2,TADAtime1=TADAtime1, TADAtime2=TADAtime2, status=status, presentInDiffusion= presentInDiffusion, presenceMatrix = presenceMatrix ,asocialTreatment=asocialTreatment, stMetric=stMetric, asocILVdata=asocILVdata.naive, intILVdata=intILVdata.naive, multiILVdata=multiILVdata.naive,randomEffectdata=randomEffectdata.naive,offsetCorrection=offsetCorrection)
+              callNextMethod(.Object, label=label, idname=idname, assMatrix=assMatrix, asoc_ilv=asoc_ilv, int_ilv=int_ilv,multi_ilv=multi_ilv,random_effects=random_effects, orderAcq=orderAcq, timeAcq=timeAcq, endTime=endTime,updateTimes=NA, ties=ties, trueTies=trueTies, demons=demons, weights=weights, statusMatrix=statusMatrix,  trueTieAdjustedStatusMatrix=statusMatrix,availabilityMatrix=availabilityMatrix, event.id=event.id, id=id, time1=time1, time2=time2,TADAtime1=TADAtime1, TADAtime2=TADAtime2, status=status, trueTieAdjustedStatus=status,trueTieAdjustmentWeight=rep(1,length(status)),presentInDiffusion= presentInDiffusion, presenceMatrix = presenceMatrix ,asocialTreatment=asocialTreatment, stMetric=stMetric, asocILVdata=asocILVdata.naive, intILVdata=intILVdata.naive, multiILVdata=multiILVdata.naive,randomEffectdata=randomEffectdata.naive,offsetCorrection=offsetCorrection)
 
             }
           } # end function
