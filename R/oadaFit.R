@@ -485,7 +485,25 @@ setMethod("initialize",
 #Function for implementing the initialization and choosing between normal and oada.coxme version
 oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
   if(type=="social"|type=="asocial"){
+
+    #Check if trueTies are present
+    trueTiesPresent<-F
+    if(is.character(nbdadata)){
+      for(i in length(nbdadata)){
+        nbdadataTemp<-eval(as.name(nbdadata[1]));
+        if(!is.null(nbdadataTemp@trueTies[[1]])) trueTiesPresent<-T
+      }
+
+    }else{
+      if(!is.null(nbdadata@trueTies[[1]])) trueTiesPresent<-T
+    }
+    #SLdom models cannot fit trueTies yet:
+    if(trueTiesPresent&SLdom){
+      print("Error: trueTies not currently supported for SLdom");
+      return(NULL)
+    }
     if(is.null(coxmeFit)){
+
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not
       if(is.character(nbdadata)){
         nbdadataTemp<-eval(as.name(nbdadata[1]));
@@ -493,9 +511,13 @@ oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(
       if(nbdadataTemp@random_effects[1]=="REabsent"){coxmeFit=F}else{coxmeFit=T}
     }
     if(coxmeFit){
+      if(trueTiesPresent){
+        print("Error: trueTies not supported for coxmeFit");
+        return(NULL)
+      }
       if(SLdom){
         print("Error: SLdom model cannot be fitted using coxme");
-        return
+        return (NULL)
       }else{
         return(new("oadaFit_coxme",nbdadata= nbdadata,type= type, startValue= startValue,lower=lower,interval= interval,method= method,gradient=gradient,iterations=iterations, standardErrors=standardErrors,formula=formula))
       }
@@ -504,7 +526,7 @@ oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(
     }
   }else{
     print("Error: Invalid type of model")
-    return()
+    return(NULL)
   }
 }
 

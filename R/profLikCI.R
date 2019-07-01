@@ -368,3 +368,112 @@ if(is.null(lowerRange)){
 }
 
 
+#The above functions do not work with trueTies since the likelihood cannot be corrected easily when an offsetCorrection is included (I cannot think of any way)
+#I wrote the functions below to start to provide profile likelihood confidence intervals for data with trueTies
+
+#Currently still being tested and not written for asocial models yet
+
+oadaSplitParamsLikelihood<-function(parVect,which,value,nbdadata){
+  newParVect<-rep(NA,length(parVect)+1)
+  newParVect[-which]<-parVect
+  newParVect[which]<-value
+  return(oadaLikelihood(newParVect,nbdadata))
+}
+
+oadaSplitParamsGradient<-function(parVect,which,value,nbdadata){
+  return(grad(func=oadaSplitParamsLikelihood,x=parVect,which=which,value=value,nbdadata=nbdadata))
+}
+
+oadaProfileLikelihood<-function(which,value,nbdadata,startValue=NULL,lower=NULL,upper=NULL){
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp<-eval(as.name(nbdadata[1]));
+  }else{nbdadataTemp<-nbdadata}
+
+  #calculate the number of each type of parameter
+  noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
+  noILVasoc<- dim(nbdadataTemp@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp@intILVdata)[2] #ILV effects on interaction (social learning)
+  noILVmulti<- dim(nbdadataTemp@multiILVdata)[2] #ILV multiplicative model effects
+
+  if(nbdadataTemp@asoc_ilv[1]=="ILVabsent"){noILVasoc<-0} #Ignore dummy ILV
+  if(nbdadataTemp@int_ilv[1]=="ILVabsent"){noILVint<-0} #Ignore dummy ILV
+  if(nbdadataTemp@multi_ilv[1]=="ILVabsent"){noILVmulti<-0} #Ignore dummy ILV
+
+  if((noSParam+noILVasoc+noILVint+noILVmulti)==1){
+    return(oadaLikelihood(value,nbdadata))
+  }else{
+
+  if(which<noSParam) {noSParam<-noSParam-1}else{noILVasoc<-noILVasoc-1}
+
+  #Set lower values if not specified by the user
+  if(is.null(lower)) lower<-c(rep(0,noSParam),rep(-Inf,noILVasoc+noILVint+noILVmulti))
+
+  #Set upper values if not specified by the user
+  if(is.null(upper)) upper<-c(rep(Inf,noSParam),rep(Inf,noILVasoc+noILVint+noILVmulti))
+
+  #Set staring values if not specified by the user
+  if(is.null(startValue)) startValue<-rep(0,noSParam+noILVasoc+noILVint+noILVmulti);
+
+  model<-nlminb(start=startValue,objective=oadaSplitParamsLikelihood,gradient=oadaSplitParamsGradient,upper=upper,lower=lower,value=value,which=which,nbdadata=nbdadata)
+
+  return(model$objective)
+  }
+}
+
+#An alternative simple plotting function to plot profileLikelihoods, intended for data with trueTies, only works for social models
+plotProfLikTrueTies<-function(which,model,range,constraintsVect=NULL,resolution=20,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+
+  if(model@type=="asocial"){
+    print("Function does not yet work for asocial models")
+    return(NULL)
+  }
+
+  nbdadata<-model@nbdadata
+
+  xVals<-seq(range[1],range[2],length=resolution)
+  profLik<-rep(NA,length(xVals))
+
+  cutoff<-model@loglik+inflation*qchisq(conf,1)/2
+
+  for(i in 1:length(xVals)){
+    profLik[i]<-oadaProfileLikelihood(which=which, value=xVals[i],nbdadata=nbdadata,startValue=startValue,lower=lower,upper=upper)
+    plot(xVals,profLik,type="l",xlim=range,ylim=c(model@loglik-(max(na.omit(profLik))-model@loglik)*0.03,max(na.omit(profLik))),xlab=model@varNames[which],ylab="Profile log-likelihood")
+    abline(h= cutoff, lty=2)
+  }
+
+  return(data.frame(xVals,profLik))
+
+}
+
+distanceFromCutoffTrueTies<-function(value,which,model,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+
+  if(model@nbdaMultiDiff[1]=="NA"){
+    nbdadata<-model@nbdadata
+  }else{
+    nbdadata<-model@nbdaMultiDiff
+    #return("Please provide specify data underlying this multi diffusion model")
+  }
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp<-eval(as.name(nbdadata[1]));
+  }else{nbdadataTemp<-nbdadata}
+
+  #calculate the number of each type of parameter
+  noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
+  noILVasoc<- dim(nbdadataTemp@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp@intILVdata)[2] #ILV effects on interaction (social learning)
+  noILVmulti<- dim(nbdadataTemp@multiILVdata)[2] #ILV multiplicative model effects
+
+  if(nbdadataTemp@int_ilv[1]=="ILVabsent") noILVint<-0
+  if(nbdadataTemp@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+  if(nbdadataTemp@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+  type<-fitType<-model@type
+  cutoff<-model@loglik+inflation*qchisq(conf,1)/2
+
+  return(abs(cutoff-oadaProfileLikelihood(which=which,value=value,nbdadata=nbdadata,startValue=startValue,lower=lower,upper=upper)))
+}
+

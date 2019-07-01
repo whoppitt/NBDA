@@ -18,6 +18,9 @@ if(is.character(nbdadata)){
 
 }else{
 
+  if(!is.null(nbdadata@trueTies[[1]])){
+    return(grad(oadaLikelihood,parVect, nbdadata=nbdadata))
+  }
 
 	#calculate the number of each type of parameter
 	noSParam <- dim(nbdadata@stMetric)[2] #s parameters

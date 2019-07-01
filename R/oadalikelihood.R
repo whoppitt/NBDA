@@ -1,4 +1,4 @@
-#Editted for constrained model
+#Now corrected for trueTies
 
 oadaLikelihood <- function(parVect, nbdadata){
 
@@ -91,6 +91,10 @@ if(is.character(nbdadata)){
 	lComp2.2 <- sum(log(lComp2.1))
 
 	negloglik <- lComp2.2 - lComp1
+
+	if(!is.null(nbdadata@trueTies[[1]])){
+	  negloglik<-negloglik+correctTrueTies(parVect,nbdadata)
+	}
 
 	return(negloglik)
 	}

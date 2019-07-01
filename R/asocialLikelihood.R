@@ -1,5 +1,4 @@
-#Editted for constrained model
-#No need for sOffset type anymore- since the ILVs are provided separately for additive, interactive and multiplicative effects
+#Now corrected for trueTies
 
 asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
   #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
@@ -138,8 +137,12 @@ if(retainInt){
 
 	negloglik <- lComp2.2 - lComp1
 
+	if(!is.null(nbdadata@trueTies[[1]])){
+	  negloglik<-negloglik+asocialCorrectTrueTies(parVect,nbdadata)
+	}
 	return(negloglik)
 	}
 }
+
 
 
