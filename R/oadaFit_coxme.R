@@ -107,11 +107,6 @@ setMethod("initialize",
               nbdadatatemp<-eval(as.name(nbdadata[1]));
             }else{nbdadatatemp<-nbdadata}
 
-            if(!is.null(nbdadatatemp@trueTies[[1]])){
-              print("ERROR: True ties not currently implemented for coxmeFit")
-              return(NULL)
-            }
-
             #calculate the number of each type of parameter
             noSParam <- dim(nbdadatatemp@stMetric)[2] #s parameters
             noILVasoc<- dim(nbdadatatemp@asocILVdata)[2] #ILV effects on asocial learning

@@ -31,12 +31,7 @@ if(is.character(nbdadata)){
 
 }else{
 
-  #If there are trueTies use the numerical version
-  if(!is.null(nbdadata@trueTies[[1]])){
 
-    return(grad(asocialLikelihood,parVect,nbdadata=nbdadata))
-
-  }else{
 
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
@@ -177,7 +172,7 @@ if(is.character(nbdadata)){
 
   gradient <- c(asocial_grad, social_grad, multi_grad)
   return(-gradient)
-}}
+}
 } # end function
 
 

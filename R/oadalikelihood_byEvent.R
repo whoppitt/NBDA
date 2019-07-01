@@ -88,34 +88,14 @@ if(is.character(nbdadata)){
 	#This allows us to use tapply and return the correct order of events
 	event.id_factor<-factor(nbdadata@event.id[includeInOADA], levels=unique(nbdadata@event.id))
 
+	#Take logs
+	#DOing it using tapply means the events are ordered in the same way as for naive individuals
+	lComp1 <- log(tapply(totalRate*nbdadata@status[includeInOADA], INDEX=event.id_factor, FUN=sum))# group by skilled
 
-
-	if(is.null(nbdadata@trueTies[[1]])){
-
-	  #Take logs
-	  #DOing it using tapply means the events are ordered in the same way as for naive individuals
-	  lComp1 <- log(tapply(totalRate*nbdadata@status[includeInOADA], INDEX=event.id_factor, FUN=sum))# group by skilled
-
-	  lComp2.1 <- tapply(totalRate, INDEX=event.id_factor, FUN=sum) # check this works. this is total rate per event across all naive id
-	  lComp2.2 <- log(lComp2.1)
-
-
-	}else{
-	  #If there are trueTies calculate  with the OADA expanded version of the Efron method for tied data in a Cox model
-
-	  #for lComp2 this simply requires use of the nbdadata@trueTieAdjustmentWeight to weight individuals in this component of the likelihood
-	  lComp2.1 <- tapply(totalRate*nbdadata@trueTieAdjustmentWeight, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # this is total rate per event across all naive id
-
-	  lComp2.2 <- log(lComp2.1)
-
-	  #lComp1 is trickier since we need to average each tied individual's rates over the events they might have learned in, to allow for the different orders of learning that are possible
-
-	  lComp1 <- log(tapply(totalRate[nbdadata@trueTieAdjustedStatus>0],nbdadata@idname[nbdadata@trueTieAdjustedStatus>0],mean))
-
-	}
+	lComp2.1 <- tapply(totalRate, INDEX=event.id_factor, FUN=sum) # check this works. this is total rate per event across all naive id
+	lComp2.2 <- log(lComp2.1)
 
 	negloglik <- lComp2.2 - lComp1
-
 
 	#Also get solver's st Metric and total st Metric
 	learnersStMetric<-tapply(apply(cbind(nbdadata@stMetric[includeInOADA,]),1,sum)*nbdadata@status[includeInOADA],event.id_factor,sum)
