@@ -2,7 +2,7 @@
 # so their influence as potential transmitters of information is not removed.
 # This contrasts with removing an individual before using nbdaData() to create the data object.
 # The user specifies which part of the nbdaData object is to be used as a filter as a string.
-# e.g. to filter out by id, enter "id". To filter by the first variable in the asocILVmatrix, use "asocILVmatrix[,1]"
+# e.g. to filter out by id, enter "id". To filter by the first variable in the asocILVdata, use "asocILVdata[,1]"
 # Then provide a vector to exclude saying which cases whould be removed, e.g.
 # newData<-filteredNBDAdata(nbdadata=Diffusion1, filter="id", exclude=c("Diffusion1_1","Diffusion_2"))
 # Would remove individuals 1 and 2 from the data, assuming the diffusion label= Diffusion1

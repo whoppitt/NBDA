@@ -1,21 +1,27 @@
 #At a future date: Make it possible to use multiple Cores on this. Need to make sure the temp objects are being written to different environments but should work automatically.
+#Update- now added a function to combine oadaAICtables, so the user can at least run parts of the constraintsVectMatrix on different cores then manually
+#combine them using this fuction
+#I should also be able to use this to create a multicore version later.
 
 #Define class of object for the fitted additive model
 setClass("oadaAICtable",representation(nbdaMultiDiff
-="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",typeVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
+="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix",
+MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",
+typeVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
 
 
 #Method for initializing addFit object- including model fitting
 setMethod("initialize",
     signature(.Object = "oadaAICtable"),
-    function (.Object, nbdadata,typeVect,constraintsVectMatrix,offsetVectMatrix,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,...)
+    function (.Object, nbdadata,typeVect,constraintsVectMatrix,offsetVectMatrix,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,combineTables=F,
+              MLEs,SEs,MLEilv,SEilv,MLEint,SEint,
+              convergence,loglik,aic,aicc,netComboModifierVect,...)
     {
-
 
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
 
 	 	#If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
-    	if(is.character(nbdadata)){
+    if(is.character(nbdadata)){
     	  nbdadataTemp1<-eval(as.name(nbdadata[1]));
     	}else{nbdadataTemp1<-nbdadata}
 
@@ -23,9 +29,6 @@ setMethod("initialize",
 		if(is.null(offsetVectMatrix)) offsetVectMatrix<-constraintsVectMatrix*0
 
 		noModels<-dim(constraintsVectMatrix)[1]
-    #set up progress bar
-		pb <- txtProgressBar(min=0, max=noModels, style=3)
-
 
 		#Calculate the number of different s parameters, ILVs and models to be fitted
 		noSParam<-dim(nbdadataTemp1@stMetric)[2]
@@ -40,6 +43,12 @@ setMethod("initialize",
 		asocialVarNames<-unique(c(nbdadataTemp1@asoc_ilv,nbdadataTemp1@int_ilv,nbdadataTemp1@multi_ilv))
 		asocialVarNames<-asocialVarNames[asocialVarNames!="ILVabsent"]
 		if(is.null(asocialVarNames)){noILVs<-0}else{noILVs<-length(asocialVarNames)}
+
+		#Unless we are combining AICtables already fitted, loop through the constrainstVectMatrix and fit all the models
+		if(!combineTables){
+
+		#set up progress bar
+		pb <- txtProgressBar(min=0, max=noModels, style=3)
 
 		#Set up matrices to record maximum likelihood estimators and SEs
 		MLEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("s",1:noSParam,sep="")))
@@ -185,12 +194,14 @@ setMethod("initialize",
 		}
       }
 		}
+		close(pb)
 
 		#We can now sum up the effects on asocial and social learning for each variable
 		MLEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("ASOCIAL",asocialVarNames,sep="")))
 		SEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEasocial",asocialVarNames,sep="")))
 		MLEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SOCIAL",asocialVarNames,sep="")))
 		SEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEsocial",asocialVarNames,sep="")))
+
 
 
 		for(variable in 1:length(asocialVarNames)){
@@ -209,6 +220,7 @@ setMethod("initialize",
 		    MLEint[,variable]<-MLEint[,variable]+MLEintUC[,unlist(dimnames(MLEintUC)[2])==asocialVarNames[variable]]
 		    SEint[,variable]<-SEint[,variable]+SEintUC[,unlist(dimnames(SEintUC)[2])==asocialVarNames[variable]]
 		  }
+		}
 		}
 
 		#calculate deltaAIC based on AICc unless user specifies AIC
@@ -276,31 +288,46 @@ setMethod("initialize",
 		for(i in 1:length(typeVect)){
 		  netCombo[i]<- paste(constraintsVectMatrix[i,1:noSParam],collapse=":")
 		}
+		#This modifies the netCombo vector if multiple tables are being combined with different network properties
+		#most likey weighted versus non-weighted
+		netCombo<-paste(netComboModifierVect,netCombo,sep="")
+
 
 		if(aicUse=="aic"){
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,
+		                        SEs,SEilv,SEint,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aic),]
 		}else{
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,
+		                         SEs,SEilv,SEint,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aicc),]
 		}
 
-		close(pb)
 
 		if(is.character(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 
 		}
+
     }
 )
 
 
 
 #Function for implementing the initialization
-oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F){
-	return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile))
+oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F,combineTables=F,
+                        MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL,
+                        convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
+	return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,
+	           iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile,combineTables=combineTables,
+	           MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,
+	           convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect))
 
 }
 
@@ -590,4 +617,107 @@ unconditionalStdErr<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baseli
 
   return(c(UCSEs, UCSEilv, UCSEint))
 }
+
+
+
+combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=rep("",length(oadaAICtableList))){
+
+  i<-1
+  oadaAICtableTemp<-oadaAICtableList[[i]]
+  nbdadata<-oadaAICtableTemp@nbdadata
+
+  writeProgressFile=F;
+  startValue=NULL;
+  method=NULL;
+  gradient=NULL;
+  iterations=NULL;
+  lowerList=NULL;
+
+  typeVect<-oadaAICtableTemp@typeVect;
+  constraintsVectMatrix<-oadaAICtableTemp@constraintsVectMatrix;
+  offsetVectMatrix<-oadaAICtableTemp@offsetVectMatrix;
+  netComboModifierVect<-rep(netComboModifier[i],dim(oadaAICtableTemp@constraintsVectMatrix)[1])
+
+  #Loop through the oadaAICtableList and create combined versions of typeVect, constraintsVectMatrix, and offsetVectMatrix
+  for(i in 2:length(oadaAICtableList)){
+    #Read in the next oadaAICtable
+    oadaAICtableTemp<-oadaAICtableList[[i]]
+    typeVect<-c(typeVect,oadaAICtableTemp@typeVect)
+    constraintsVectMatrix<-rbind(constraintsVectMatrix,oadaAICtableTemp@constraintsVectMatrix)
+    offsetVectMatrix<-rbind(offsetVectMatrix,oadaAICtableTemp@offsetVectMatrix)
+    netComboModifierVect<-c(netComboModifierVect,rep(netComboModifier[i],dim(oadaAICtableTemp@constraintsVectMatrix)[1]))
+
+  }
+
+  typeVect[typeVect!="asocial"]<-"social"
+  typeVect[is.na(typeVect)]<-"social"
+
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp1<-eval(as.name(nbdadata[1]));
+  }else{nbdadataTemp1<-nbdadata}
+
+  noModels<-dim(constraintsVectMatrix)[1]
+  dimnames(constraintsVectMatrix)[[1]]<-dimnames(offsetVectMatrix)[[1]]<-1:noModels
+
+
+  #Calculate the number of different s parameters, ILVs and models to be fitted
+  noSParam<-dim(nbdadataTemp1@stMetric)[2]
+  noILVasoc<- dim(nbdadataTemp1@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp1@intILVdata)[2] #ILV effects on interation (social learning)
+  noILVmulti<- dim(nbdadataTemp1@multiILVdata)[2] #ILV multiplicative model effects
+  if(nbdadataTemp1@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+  if(nbdadataTemp1@int_ilv[1]=="ILVabsent") noILVint<-0
+  if(nbdadataTemp1@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+  #Record asocialVar names
+  asocialVarNames<-unique(c(nbdadataTemp1@asoc_ilv,nbdadataTemp1@int_ilv,nbdadataTemp1@multi_ilv))
+  asocialVarNames<-asocialVarNames[asocialVarNames!="ILVabsent"]
+  if(is.null(asocialVarNames)){noILVs<-0}else{noILVs<-length(asocialVarNames)}
+
+  #Set up matrices to record maximum likelihood estimators and SEs
+  MLEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("s",1:noSParam,sep="")))
+  SEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("SEs",1:noSParam,sep="")))
+  MLEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("ASOCIAL",asocialVarNames,sep="")))
+  SEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEasocial",asocialVarNames,sep="")))
+  MLEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SOCIAL",asocialVarNames,sep="")))
+  SEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEsocial",asocialVarNames,sep="")))
+
+  #Set up various vectors to record things about each model
+  convergence<-loglik<-aic<-aicc<-seApprox<-rep(NA,noModels)
+
+  #Loop through the oadaAICtableList and fill in the various matrices and vectors
+  #Track the start point to fill in each time
+  startPoint<-1
+  for(i in 1:length(oadaAICtableList)){
+    #Read in the next oadaAICtable
+    oadaAICtableTemp<-oadaAICtableList[[i]]
+    endPoint<-dim(oadaAICtableTemp@constraintsVectMatrix)[1]+startPoint-1
+
+    MLEs[startPoint:endPoint,]<-oadaAICtableTemp@MLEs
+    SEs[startPoint:endPoint,]<-oadaAICtableTemp@SEs
+    if(noILVasoc!=0){
+      MLEilv[startPoint:endPoint,]<-oadaAICtableTemp@MLEilv
+      SEilv[startPoint:endPoint,]<-oadaAICtableTemp@SEilv
+      MLEint[startPoint:endPoint,]<-oadaAICtableTemp@MLEint
+      SEint[startPoint:endPoint,]<-oadaAICtableTemp@SEint
+    }
+    convergence[startPoint:endPoint]<-oadaAICtableTemp@convergence
+    loglik[startPoint:endPoint]<-oadaAICtableTemp@loglik
+    aic[startPoint:endPoint]<-oadaAICtableTemp@aic
+    aicc[startPoint:endPoint]<-oadaAICtableTemp@aicc
+    startPoint<-endPoint+1
+  }
+
+  tableTemp<-oadaAICtable(nbdadata=nbdadata,  constraintsVectMatrix=constraintsVectMatrix,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,
+               startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,
+               combineTables=T,
+               MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,
+               convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect)
+
+  return(tableTemp)
+
+}
+
 

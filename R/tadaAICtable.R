@@ -1,5 +1,7 @@
 #At a future date: Make it possible to use multiple Cores on this. Need to make sure the temp objects are being written to different environments but should work automatically.
 
+#I now have a combineOadaAICtable function, I need to write an equivalent one for TADA
+
 #Define class of object for the fitted additive model
 setClass("tadaAICtable",representation(nbdaMultiDiff
 ="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",MLEhaz="matrix",SEhaz="matrix",typeVect="character",baselineVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
