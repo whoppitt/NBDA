@@ -10,18 +10,14 @@ setClass("tadaAICtable",representation(nbdaMultiDiff
 #Method for initializing addFit object- including model fitting
 setMethod("initialize",
     signature(.Object = "tadaAICtable"),
-    function (.Object, nbdadata,typeVect,baselineVect,constraintsVectMatrix,offsetVectMatrix,noHazFunctParsCustom,hazFunct,cumHaz,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,...)
-    {
+    function (.Object, nbdadata,typeVect,baselineVect,constraintsVectMatrix,offsetVectMatrix,noHazFunctParsCustom,hazFunct,cumHaz,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,combineTables=F,
+              MLEs,SEs,MLEilv,SEilv,MLEint,SEint,MLEhaz,SEhaz,
+              convergence,loglik,aic,aicc,netComboModifierVect,...)
+          {
 
 
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
     if(is.null(baselineVect)){baselineVect<-rep("constant",dim(constraintsVectMatrix)[1])}
-
-    noHazFunctParsVect<-rep(NA,length(baselineVect))
-    noHazFunctParsVect[baselineVect=="constant"]<-1
-    noHazFunctParsVect[baselineVect=="weibull"]<-2
-    noHazFunctParsVect[baselineVect=="gamma"]<-2
-    noHazFunctParsVect[baselineVect=="custom"]<-noHazFunctParsCustom
 
 	 	#If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
     	if(is.character(nbdadata)){
@@ -32,9 +28,6 @@ setMethod("initialize",
 		if(is.null(offsetVectMatrix)) offsetVectMatrix<-constraintsVectMatrix*0
 
 		noModels<-dim(constraintsVectMatrix)[1]
-    #set up progress bar
-		pb <- txtProgressBar(min=0, max=noModels, style=3)
-
 
 		#Calculate the number of different s parameters, ILVs and models to be fitted
 		noSParam<-dim(nbdadataTemp1@stMetric)[2]
@@ -49,6 +42,18 @@ setMethod("initialize",
 		asocialVarNames<-unique(c(nbdadataTemp1@asoc_ilv,nbdadataTemp1@int_ilv,nbdadataTemp1@multi_ilv))
 		asocialVarNames<-asocialVarNames[asocialVarNames!="ILVabsent"]
 		if(is.null(asocialVarNames)){noILVs<-0}else{noILVs<-length(asocialVarNames)}
+
+		#Unless we are combining AICtables already fitted, loop through the constrainstVectMatrix and fit all the models
+		if(!combineTables){
+
+		#set up progress bar
+		pb <- txtProgressBar(min=0, max=noModels, style=3)
+
+		noHazFunctParsVect<-rep(NA,length(baselineVect))
+		noHazFunctParsVect[baselineVect=="constant"]<-1
+		noHazFunctParsVect[baselineVect=="weibull"]<-2
+		noHazFunctParsVect[baselineVect=="gamma"]<-2
+		noHazFunctParsVect[baselineVect=="custom"]<-noHazFunctParsCustom
 
 		#Set up matrices to record maximum likelihood estimators and SEs
 		MLEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("s",1:noSParam,sep="")))
@@ -229,6 +234,8 @@ setMethod("initialize",
 		    SEint[,variable]<-SEint[,variable]+SEintUC[,unlist(dimnames(SEintUC)[2])==asocialVarNames[variable]]
 		  }
 		}
+		close(pb)
+		}
 
 		#calculate deltaAIC based on AICc unless user specifies AIC
 		if(aicUse=="aic") {deltaAIC<-aic-min(aic)}else{deltaAIC<-aicc-min(aicc)}
@@ -295,21 +302,42 @@ setMethod("initialize",
 		for(i in 1:length(typeVect)){
 		  netCombo[i]<- paste(constraintsVectMatrix[i,1:noSParam],collapse=":")
 		}
+		#This modifies the netCombo vector if multiple tables are being combined with different network properties
+		#most likey weighted versus non-weighted
+		netCombo<-paste(netComboModifierVect,netCombo,sep="")
 
 		if(aicUse=="aic"){
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEhaz,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,SEhaz,SEs,SEilv,SEint,
+		                         aic,aicc,deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aic),]
 		}else{
-		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,MLEadd,MLEintUC,MLEmulti,SEhaz,SEs,SEilv,SEint,SEadd,SEintUC,SEmulti,aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
+		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=baselineVect,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEhaz,MLEs,MLEilv,MLEint,SEhaz,SEs,SEilv,SEint,
+		                         aic,aicc, deltaAICc=deltaAIC,RelSupport,AkaikeWeight)
 		  printTable <-printTable[order(aicc),]
 		}
 
-		close(pb)
+
 
 		if(is.character(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz, MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+
+		}
+		if(is.character(nbdadata)){
+		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
+		}else{
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		                 baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,
+		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
+		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 
 		}
     }
@@ -317,9 +345,15 @@ setMethod("initialize",
 
 
 #Function for implementing the initialization
-tadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL,baselineVect=NULL, offsetVectMatrix = NULL,noHazFunctParsCustom=NULL,hazFunct=function() return(NULL),cumHaz=function() return(NULL), startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F){
-	return(new("tadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, baselineVect=baselineVect,noHazFunctParsCustom=noHazFunctParsCustom,hazFunct=hazFunct,cumHaz=cumHaz,startValue= startValue,method= method, gradient= gradient,iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile))
-
+tadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL,baselineVect=NULL, offsetVectMatrix = NULL,noHazFunctParsCustom=NULL,hazFunct=function() return(NULL),cumHaz=function() return(NULL), startValue=NULL,
+                        method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F,combineTables=F,
+                        MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL, MLEhaz=NULL,SEhaz=NULL,
+                        convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
+	return(new("tadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, baselineVect=baselineVect,noHazFunctParsCustom=noHazFunctParsCustom,
+	           hazFunct=hazFunct,cumHaz=cumHaz,startValue= startValue,method= method, gradient= gradient,
+	           iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile,combineTables=combineTables,
+	           MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,MLEhaz=MLEhaz,SEhaz=SEhaz,
+	           convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect))
 }
 
 #Method for initializing addFit object- including model fitting
@@ -336,5 +370,115 @@ baselineSupport<-function(tadaAICtable){
   return(data.frame(support=support,numberOfModels=numbers))
 }
 
+
+combineTadaAICtables<-function(tadaAICtableList,aicUse="aicc",netComboModifier=rep("",length(tadaAICtableList))){
+
+  i<-1
+  tadaAICtableTemp<-tadaAICtableList[[i]]
+  nbdadata<-tadaAICtableTemp@nbdadata
+
+  writeProgressFile=F;
+  startValue=NULL;
+  method=NULL;
+  gradient=NULL;
+  iterations=NULL;
+  lowerList=NULL;
+
+  typeVect<-tadaAICtableTemp@typeVect;
+  baselineVect<-groomhitAICtable_tada@baselineVect
+  constraintsVectMatrix<-tadaAICtableTemp@constraintsVectMatrix;
+  offsetVectMatrix<-tadaAICtableTemp@offsetVectMatrix;
+  netComboModifierVect<-rep(netComboModifier[i],dim(tadaAICtableTemp@constraintsVectMatrix)[1])
+  maxNoHazFunctParsVect<-dim(tadaAICtableTemp@MLEhaz)[2]
+
+  #Loop through the tadaAICtableList and create combined versions of typeVect, constraintsVectMatrix, and offsetVectMatrix
+  for(i in 2:length(tadaAICtableList)){
+    #Read in the next tadaAICtable
+    tadaAICtableTemp<-tadaAICtableList[[i]]
+    typeVect<-c(typeVect,tadaAICtableTemp@typeVect)
+    baselineVect<-c(baselineVect,tadaAICtableTemp@baselineVect)
+    constraintsVectMatrix<-rbind(constraintsVectMatrix,tadaAICtableTemp@constraintsVectMatrix)
+    offsetVectMatrix<-rbind(offsetVectMatrix,tadaAICtableTemp@offsetVectMatrix)
+    netComboModifierVect<-c(netComboModifierVect,rep(netComboModifier[i],dim(tadaAICtableTemp@constraintsVectMatrix)[1]))
+
+    maxNoHazFunctParsVect<-max(maxNoHazFunctParsVect,dim(tadaAICtableTemp@MLEhaz)[2])
+
+
+  }
+
+  typeVect[typeVect!="asocial"]<-"social"
+  typeVect[is.na(typeVect)]<-"social"
+
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp1<-eval(as.name(nbdadata[1]));
+  }else{nbdadataTemp1<-nbdadata}
+
+  noModels<-dim(constraintsVectMatrix)[1]
+  dimnames(constraintsVectMatrix)[[1]]<-dimnames(offsetVectMatrix)[[1]]<-1:noModels
+
+
+  #Calculate the number of different s parameters, ILVs and models to be fitted
+  noSParam<-dim(nbdadataTemp1@stMetric)[2]
+  noILVasoc<- dim(nbdadataTemp1@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp1@intILVdata)[2] #ILV effects on interation (social learning)
+  noILVmulti<- dim(nbdadataTemp1@multiILVdata)[2] #ILV multiplicative model effects
+  if(nbdadataTemp1@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+  if(nbdadataTemp1@int_ilv[1]=="ILVabsent") noILVint<-0
+  if(nbdadataTemp1@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+  #Record asocialVar names
+  asocialVarNames<-unique(c(nbdadataTemp1@asoc_ilv,nbdadataTemp1@int_ilv,nbdadataTemp1@multi_ilv))
+  asocialVarNames<-asocialVarNames[asocialVarNames!="ILVabsent"]
+  if(is.null(asocialVarNames)){noILVs<-0}else{noILVs<-length(asocialVarNames)}
+
+  #Set up matrices to record maximum likelihood estimators and SEs
+  MLEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("s",1:noSParam,sep="")))
+  SEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("SEs",1:noSParam,sep="")))
+  MLEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("ASOCIAL",asocialVarNames,sep="")))
+  SEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEasocial",asocialVarNames,sep="")))
+  MLEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SOCIAL",asocialVarNames,sep="")))
+  SEint<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("SEsocial",asocialVarNames,sep="")))
+  MLEhaz<-matrix(NA,nrow=noModels,ncol=maxNoHazFunctParsVect,dimnames=list(1:noModels, paste("Baseline parameter",1:maxNoHazFunctParsVect,sep="")))
+  SEhaz<-matrix(NA,nrow=noModels,ncol=maxNoHazFunctParsVect,dimnames=list(1:noModels, paste("SE Baseline parameter",1:maxNoHazFunctParsVect,sep="")))
+
+  #Set up various vectors to record things about each model
+  convergence<-loglik<-aic<-aicc<-seApprox<-rep(NA,noModels)
+
+  #Loop through the tadaAICtableList and fill in the various matrices and vectors
+  #Track the start point to fill in each time
+  startPoint<-1
+  for(i in 1:length(tadaAICtableList)){
+    #Read in the next tadaAICtable
+    tadaAICtableTemp<-tadaAICtableList[[i]]
+    endPoint<-dim(tadaAICtableTemp@constraintsVectMatrix)[1]+startPoint-1
+
+    MLEs[startPoint:endPoint,]<-tadaAICtableTemp@MLEs
+    SEs[startPoint:endPoint,]<-tadaAICtableTemp@SEs
+    MLEhaz[startPoint:endPoint,1:dim(tadaAICtableTemp@MLEhaz)[2]]<-tadaAICtableTemp@MLEhaz
+    SEhaz[startPoint:endPoint,1:dim(tadaAICtableTemp@SEhaz)[2]]<-tadaAICtableTemp@SEhaz
+    if(noILVasoc!=0){
+      MLEilv[startPoint:endPoint,]<-tadaAICtableTemp@MLEilv
+      SEilv[startPoint:endPoint,]<-tadaAICtableTemp@SEilv
+      MLEint[startPoint:endPoint,]<-tadaAICtableTemp@MLEint
+      SEint[startPoint:endPoint,]<-tadaAICtableTemp@SEint
+    }
+    convergence[startPoint:endPoint]<-tadaAICtableTemp@convergence
+    loglik[startPoint:endPoint]<-tadaAICtableTemp@loglik
+    aic[startPoint:endPoint]<-tadaAICtableTemp@aic
+    aicc[startPoint:endPoint]<-tadaAICtableTemp@aicc
+    startPoint<-endPoint+1
+  }
+
+  tableTemp<-tadaAICtable(nbdadata=nbdadata,  constraintsVectMatrix=constraintsVectMatrix,typeVect=typeVect, baselineVect=baselineVect,offsetVectMatrix = offsetVectMatrix,
+                          startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,
+                          combineTables=T,
+                          MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint, MLEhaz=MLEhaz, SEhaz=SEhaz,
+                          convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect)
+
+  return(tableTemp)
+
+}
 
 
