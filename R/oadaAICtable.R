@@ -15,7 +15,7 @@ setMethod("initialize",
     signature(.Object = "oadaAICtable"),
     function (.Object, nbdadata,typeVect,constraintsVectMatrix,offsetVectMatrix,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,combineTables=F,
               MLEs,SEs,MLEilv,SEilv,MLEint,SEint,
-              convergence,loglik,aic,aicc,netComboModifierVect,...)
+              convergence,loglik,aic,aicc,netComboModifierVect,statusBar,...)
     {
 
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
@@ -48,7 +48,7 @@ setMethod("initialize",
 		if(!combineTables){
 
 		#set up progress bar
-		pb <- txtProgressBar(min=0, max=noModels, style=3)
+		if(statusBar) pb <- txtProgressBar(min=0, max=noModels, style=3)
 
 		#Set up matrices to record maximum likelihood estimators and SEs
 		MLEs<-matrix(NA,nrow=noModels,ncol=noSParam,dimnames=list(1:noModels, paste("s",1:noSParam,sep="")))
@@ -80,7 +80,7 @@ setMethod("initialize",
 		for (i in 1:noModels){
 
 		  #Update progress bar
-		  setTxtProgressBar(pb, i)
+		  if(statusBar)setTxtProgressBar(pb, i)
 		  #Write file to working directory saying what model we are on
       if(writeProgressFile){write.csv(paste("Currently fitting model",i, "out of", noModels),file=paste("oadaTableProgressFile",nbdadataTemp1@label[1],".txt",sep=""),row.names =F)}
 
@@ -194,7 +194,7 @@ setMethod("initialize",
 		}
       }
 		}
-		close(pb)
+		if(statusBar)close(pb)
 
 		#We can now sum up the effects on asocial and social learning for each variable
 		MLEilv<-matrix(0,nrow=noModels,ncol= noILVs, dimnames=list(1:noModels, paste("ASOCIAL",asocialVarNames,sep="")))
@@ -321,14 +321,22 @@ setMethod("initialize",
 
 
 #Function for implementing the initialization
-oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,writeProgressFile=F,combineTables=F,
+oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, cores=1, modelsPerCorePerSet=NULL,writeProgressFile=F,statusBar=NULL,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,combineTables=F,
                         MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL,
                         convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
-	return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,
-	           iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile,combineTables=combineTables,
+  if(cores>1){
+    if(is.null(statusBar))statusBar<-F
+    oadaAICtable_multiCore(nbdadata=nbdadata,constraintsVectMatrix=constraintsVectMatrix,cores=cores,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,
+                           modelsPerCorePerSet=modelsPerCorePerSet,writeProgressFile=writeProgressFile,statusBar=statusBar, startValue=startValue,method=method, gradient=gradient,iterations=iterations,
+                           aicUse=aicUse,lowerList=lowerList)
+
+  }else{
+    if(is.null(statusBar))statusBar<-T
+    return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,
+	           iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile,combineTables=combineTables,statusBar=statusBar,
 	           MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,
 	           convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect))
-
+  }
 }
 
 #Method for initializing addFit object- including model fitting
@@ -618,8 +626,6 @@ unconditionalStdErr<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baseli
   return(c(UCSEs, UCSEilv, UCSEint))
 }
 
-
-
 combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=rep("",length(oadaAICtableList))){
 
   i<-1
@@ -720,4 +726,113 @@ combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=r
 
 }
 
+#This function runs an oadaAICtable with multiple cores, but is called via oadaAICtable with the cores argument
+#so does not need calling by the user
+oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=NULL, offsetVectMatrix = NULL, modelsPerCorePerSet=NULL,writeProgressFile=F,statusBar=F,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL){
+  noModels<-dim(constraintsVectMatrix)[1];
+  #If cores is more than the number of models, reduce so one model is fit per cors
+  if(cores>noModels) cores<-noModels
+  #How many models will be run on each core?
+  modelsPerCore<-noModels%/%cores
+  #How many will be left over to run at the end?
+  remainderModels<-noModels%%cores
 
+  #I will set the models to run in sets of 10 per core (default) then write the oadaAICtable so far to a
+  #file in the working directory if writeProgressFile=T (the default is F)
+  #This means in a long model run, if there is a powercut or crash the progress will be saved
+  #This slows things down so only worth it for big models that take a long time to fit
+  if(is.null(modelsPerCorePerSet)){modelsPerCorePerSet<-modelsPerCore}
+  if(modelsPerCorePerSet>modelsPerCore)modelsPerCorePerSet<-modelsPerCore
+  numberOfInitialSets<-modelsPerCore%/%modelsPerCorePerSet
+  remainderModelsPerCore<-modelsPerCore%%modelsPerCorePerSet
+
+  #aicTable funcions do not work with a single model, so adjust to make sure a single model is not fitted
+  while(remainderModelsPerCore==1|remainderModels==1){
+    cores<-cores-1
+    #How many models will be run on each core?
+    modelsPerCore<-noModels%/%cores
+    #How many will be left over to run at the end?
+    remainderModels<-noModels%%cores
+    #How many models will be run on each core?
+    numberOfInitialSets<-modelsPerCore%/%modelsPerCorePerSet
+    remainderModelsPerCore<-modelsPerCore%%modelsPerCorePerSet
+    if(cores==1) break
+  }
+
+  #Do the remainder set first
+  if(remainderModels>0){
+    constraintsVectMatrixTemp<- constraintsVectMatrix[1:remainderModels,]
+    if(is.null(typeVect)){typeVectTemp<-NULL}else{typeVectTemp<-typeVect[1:remainderModels]}
+    if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[1:remainderModels,]}
+
+  cumulativeAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
+                                   startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,statusBar = F)
+  }else{cumulativeAICtable<-NULL}
+
+  if(statusBar) pb <- txtProgressBar(min=0, max=numberOfInitialSets, style=3)
+
+  #Loop through the initial sets
+  for(set in 1:numberOfInitialSets){
+
+    #Set up for parallel processing as detailed in http://www.parallelr.com/r-with-parallel-computing/
+    cl <- makeCluster(cores)
+    registerDoParallel(cl, cores=cores)
+
+    tablesFromSet <- foreach(i=1:cores) %dopar%
+    {
+      #I think we need to reload the NBDA package into each thread
+      library(NBDA)
+      #Identify which models need to be fitted in this core x set combination
+      modelSet<-((set-1)*modelsPerCorePerSet*cores + (i-1)*modelsPerCorePerSet+remainderModels)+1:modelsPerCorePerSet
+      #Cut down constraintsVectMatrix and, if necessary typeVect and offsetVectMatrix
+      constraintsVectMatrixTemp<- constraintsVectMatrix[modelSet,]
+      if(is.null(typeVect)){typeVectTemp<-NULL}else{typeVectTemp<-typeVect[modelSet]}
+      if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[modelSet,]}
+      #Fit the set of models required by this core x set
+      tempAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
+                                       startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F)
+      #Return the table, which is combined into a list with the tables from the other cores
+      tempAICtable
+    }
+    #Stop the cluster
+    stopImplicitCluster()
+    stopCluster(cl)
+    #Combine the list of models with the cumumative oadaAICtable so far
+    cumulativeAICtable<-combineOadaAICtables(c(cumulativeAICtable,tablesFromSet),aicUse=aicUse)
+    if(writeProgressFile) save(cumulativeAICtable,file="cumulativeAICtable_parallel.Rdata")
+    if(statusBar)setTxtProgressBar(pb, set)
+
+  }
+  #Do the remainder for each core
+  if(remainderModelsPerCore>0){
+    #Set up for parallel processing as detailed in http://www.parallelr.com/r-with-parallel-computing/
+    cl <- makeCluster(cores)
+    registerDoParallel(cl, cores=cores)
+
+    tablesFromSet <- foreach(i=1:cores) %dopar%
+    {
+      #I think we need to reload the NBDA package into each thread
+      library(NBDA)
+      #Identify which models need to be fitted in this core x set combination
+      modelSet<-(numberOfInitialSets*modelsPerCorePerSet*cores + (i-1)*remainderModelsPerCore+remainderModels)+1:remainderModelsPerCore
+      #Cut down constraintsVectMatrix and, if necessary typeVect and offsetVectMatrix
+      constraintsVectMatrixTemp<- constraintsVectMatrix[modelSet,]
+      if(is.null(typeVect)){typeVectTemp<-NULL}else{typeVectTemp<-typeVect[modelSet]}
+      if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[modelSet,]}
+      #Fit the set of models required by this core x set
+      tempAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
+                                 startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F)
+      #Return the table, which is combined into a list with the tables from the other cores
+      tempAICtable
+    }
+    #Stop the cluster
+    stopImplicitCluster()
+    stopCluster(cl)
+    #Combine the list of models with the cumumative oadaAICtable so far
+    cumulativeAICtable<-combineOadaAICtables(c(cumulativeAICtable,tablesFromSet),aicUse=aicUse)
+  }
+  if(writeProgressFile) save(cumulativeAICtable,file="finalAICtable_parallel.Rdata")
+  if(statusBar)close(pb)
+
+  return(cumulativeAICtable)
+}
