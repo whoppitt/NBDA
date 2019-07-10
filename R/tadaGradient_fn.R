@@ -23,8 +23,27 @@ if(is.character(nbdadata)){
 
 		return(totalGradient);
 
-}else{
+}
 
+  if(is.list(nbdadata)){
+
+    totalGradient <- rep(0, length(parVect));
+
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalGradient <- totalGradient + tadaGradient_fn(parVect= parVect, nbdadata=subdata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz);
+    }
+
+    return(totalGradient);
+
+  }else{
+
+  #If the object is a dTADAData object return the gradient for the discrete time of acquisition diffusion analysis
+  if(class(nbdadata)=="dTADAData"){
+    #At the moment the numerical version is used from numderiv
+    #This is perfectly accurate, but slower- so I will replace with analytical version at some point
+    return(dTadaGradient_fnNum(parVect=parVect, nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
+  }else{
 
 	#calculate the number of each type of parameter
 	noSParam <- dim(nbdadata@stMetric)[2] #s parameters
@@ -232,11 +251,16 @@ if(nbdadata@int_ilv[1]!="ILVabsent"){
 
 gradient <- c(haz_grad,s_grad, asocial_grad, social_grad, multi_grad)
 return(-gradient)
-}
+}}
 } # end function
 
 
 # For the gamma function- since numerical approximations are used,it is quicker to just numerically approximate the whole thing thus:
 tadaGradient_fnNum <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
   grad(tadaLikelihood,parVect,nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+}
+
+#Numerical version for the dTADA, to be replaced with the analytical version at some point
+dTadaGradient_fnNum <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
+  grad(dTadaLikelihood,parVect,nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
 }

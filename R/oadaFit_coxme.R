@@ -11,6 +11,19 @@ return_coxme<-function(parVect, nbdadata,formula=NULL){
         coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata))
       }
     }
+  }
+  if(is.list(nbdadata)){
+    subdata <- nbdadatatemp<-nbdadata[[1]];
+    noSParam<-dim(nbdadatatemp@stMetric)[2] #number of s parameters
+    #Append 0s to parVect for the s parameters
+    parVect<-c(rep(0,noSParam),parVect)
+    coxmeData<-createCoxmeData(parVect,subdata,retainInt=retainInt)
+    if (length(nbdadata)>1){
+      for(i in 2:length(nbdadata)){
+        subdata <- nbdadata[[i]];
+        coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata,retainInt=retainInt))
+      }
+    }
   }else{
     coxmeData<-createCoxmeData(parVect,nbdadata);
     nbdadatatemp<-nbdadata
@@ -60,7 +73,20 @@ if(is.character(nbdadata)){
       coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata,retainInt=retainInt))
     }
   }
-}else{
+}
+  if(is.list(nbdadata)){
+    subdata <- nbdadatatemp<-nbdadata[[1]];
+    noSParam<-dim(nbdadatatemp@stMetric)[2] #number of s parameters
+    #Append 0s to parVect for the s parameters
+    parVect<-c(rep(0,noSParam),parVect)
+    coxmeData<-createCoxmeData(parVect,subdata,retainInt=retainInt)
+    if (length(nbdadata)>1){
+      for(i in 2:length(nbdadata)){
+        subdata <- nbdadata[[i]];
+        coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata,retainInt=retainInt))
+      }
+    }
+  }else{
   nbdadatatemp<-nbdadata
   noSParam<-dim(nbdadatatemp@stMetric)[2] #number of s parameters
   #Append 0s to parVect for the s parameters
@@ -103,9 +129,9 @@ setMethod("initialize",
             standardErrors<-F
 
             #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
-            if(is.character(nbdadata)){
-              nbdadatatemp<-eval(as.name(nbdadata[1]));
-            }else{nbdadatatemp<-nbdadata}
+            if(is.list(nbdadata)){
+              nbdadataTemp<-nbdadata[[1]]
+            }else{nbdadataTemp<-nbdadata}
 
             #calculate the number of each type of parameter
             noSParam <- dim(nbdadatatemp@stMetric)[2] #s parameters

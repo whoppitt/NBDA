@@ -6,7 +6,7 @@
 # For unconstrained I need another ILVdata part to the nbdaData object which I can put the constrained data for the interaction in
 
 constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
-  
+
   #Calculate the number of parameters
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
@@ -17,7 +17,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   if(nbdadata@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
   if(nbdadata@int_ilv[1]=="ILVabsent") noILVint<-0
   if(nbdadata@multi_ilv[1]=="ILVabsent") noILVmulti<-0
-    
+
   if(length(constraintsVect)!=noSParam+noILVasoc+noILVint+noILVmulti){
     print("Error: constraintsVect must be of length equal to the number of variables in the input nbdadata object")
     return(NULL)
@@ -38,26 +38,26 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
     if(max(asocILVConstraintsVect)>0) asocILVConstraintsVect<-(asocILVConstraintsVect-min(asocILVConstraintsVect[asocILVConstraintsVect>0])+1)*(asocILVConstraintsVect>0)
     asocILVOffsetVect<-offsetVect[(noSParam+1):(noSParam+noILVasoc)]
   }
-    
+
   if(nbdadata@int_ilv[1]=="ILVabsent"){
     intILVConstraintsVect<-intILVOffsetVect<-NULL
   }else{
     intILVConstraintsVect<-constraintsVect[(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]
     if(max(intILVConstraintsVect)>0) intILVConstraintsVect<-(intILVConstraintsVect-min(intILVConstraintsVect[intILVConstraintsVect>0])+1)*(intILVConstraintsVect>0)
-    intILVOffsetVect<-offsetVect[(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]  
+    intILVOffsetVect<-offsetVect[(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]
   }
-  
+
   if(nbdadata@multi_ilv[1]=="ILVabsent"){
     multiILVConstraintsVect<-multiILVOffsetVect<-NULL
   }else{
     multiILVConstraintsVect<-constraintsVect[(noSParam+noILVasoc+noILVint+1):(noSParam+noILVasoc+noILVint+noILVmulti)]
     if(max(multiILVConstraintsVect)>0) multiILVConstraintsVect<-(multiILVConstraintsVect-min(multiILVConstraintsVect[multiILVConstraintsVect>0])+1)*(multiILVConstraintsVect>0)
     multiILVOffsetVect<-offsetVect[(noSParam+noILVasoc+noILVint+1):(noSParam+noILVasoc+noILVint+noILVmulti)]
-    
+
   }
 
   newNBDAdata<-nbdadata
-  
+
   tempstMetric<-NULL
   if(length(unique(sConstraintsVect)[unique(sConstraintsVect)>0])==0){
     tempstMetric<-matrix(NA)
@@ -65,7 +65,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
     for (i in unique(sConstraintsVect)[unique(sConstraintsVect)>0]){
     tempstMetric<-cbind(tempstMetric,apply(as.matrix(nbdadata@stMetric[,sConstraintsVect==i]),1,sum))
   }
-  }  
+  }
   newNBDAdata@stMetric<-tempstMetric
 
   tempasocILVdata<-newasoc<-NULL
@@ -93,7 +93,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   }
   newNBDAdata@intILVdata<-tempintILVdata
   newNBDAdata@int_ilv<-newint
-  
+
   tempmultiILVdata<-newmulti<-NULL
   if(length(unique(multiILVConstraintsVect)[unique(multiILVConstraintsVect)>0])==0){
     tempmultiILVdata<-as.matrix(nbdadata@time1*0)
@@ -110,12 +110,12 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   colnames(newNBDAdata@asocILVdata)<-newNBDAdata@asoc_ilv
   colnames(newNBDAdata@intILVdata)<-newNBDAdata@int_ilv
   colnames(newNBDAdata@multiILVdata)<-newNBDAdata@multi_ilv
-  
+
   newNBDAdata@offsetCorrection[,1]<-nbdadata@offsetCorrection[,1]+apply(t(sOffsetVect*t(nbdadata@stMetric)),1,sum)
   newNBDAdata@offsetCorrection[,2]<-nbdadata@offsetCorrection[,2]+apply(t(asocILVOffsetVect*t(nbdadata@asocILVdata)),1,sum)
   newNBDAdata@offsetCorrection[,3]<-nbdadata@offsetCorrection[,3]+apply(t(intILVOffsetVect*t(nbdadata@intILVdata)),1,sum)
   newNBDAdata@offsetCorrection[,4]<-nbdadata@offsetCorrection[,4]+apply(t(multiILVOffsetVect*t(nbdadata@multiILVdata)),1,sum)
-  
+
   return(newNBDAdata)
 }
 
@@ -125,45 +125,45 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
 # This one constrains all non-multi ILV parameters to zero
 # i.e. creates an nbdadata object for fitting a multiplicative model to
 constrainToMultiOnly<-function(nbdadata){
-  
+
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
   noILVasoc<- dim(nbdadata@asocILVdata)[2] #ILV effects on asocial learning
   noILVint<- dim(nbdadata@intILVdata)[2] #ILV effects on interation (social learning)
   noILVmulti<- dim(nbdadata@multiILVdata)[2] #ILV multiplicative model effects
-  
+
   constraintsVect<-c(1:noSParam,rep(0,noILVasoc+noILVint),(noSParam+1):(noSParam+noILVmulti))
-  
+
   return(constrainedNBDAdata(nbdadata,constraintsVect=constraintsVect))
 }
 
 # This one constrains all multi and int ILV parameters to zero
 # i.e. creates an nbdadata object for fitting an additive model to
 constrainToAddOnly<-function(nbdadata){
-  
+
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
   noILVasoc<- dim(nbdadata@asocILVdata)[2] #ILV effects on asocial learning
   noILVint<- dim(nbdadata@intILVdata)[2] #ILV effects on interation (social learning)
   noILVmulti<- dim(nbdadata@multiILVdata)[2] #ILV multiplicative model effects
-  
+
   constraintsVect<-c(1:(noSParam+noILVasoc),rep(0,noILVint+noILVmulti))
-  
+
   return(constrainedNBDAdata(nbdadata,constraintsVect=constraintsVect))
 }
 
 # This one constrains all multi ILV parameters to zero
 # i.e. creates an nbdadata object for fitting an unconstrained model to
 removeMulti<-function(nbdadata){
-  
+
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
   noILVasoc<- dim(nbdadata@asocILVdata)[2] #ILV effects on asocial learning
   noILVint<- dim(nbdadata@intILVdata)[2] #ILV effects on interation (social learning)
   noILVmulti<- dim(nbdadata@multiILVdata)[2] #ILV multiplicative model effects
-  
+
   constraintsVect<-c(1:(noSParam+noILVasoc+noILVint),rep(0,noILVmulti))
-  
+
   return(constrainedNBDAdata(nbdadata,constraintsVect=constraintsVect))
 }
 
@@ -173,15 +173,17 @@ removeMulti<-function(nbdadata){
 # into a multiplicative model object
 
 convertAddToMulti<-function(nbdadata){
-  
+
   nbdadata@multi_ilv<-nbdadata@asoc_ilv
   nbdadata@multiILVdata<-nbdadata@asocILVdata
-  
+
   nbdadata@asoc_ilv<-"ILVabsent"
   nbdadata@int_ilv<-"ILVabsent"
   nbdadata@asocILVdata<-as.matrix(nbdadata@asocILVdata[,1]*0)
   nbdadata@intILVdata<-as.matrix(nbdadata@asocILVdata[,1]*0)
-  
+
   return(nbdadata)
 }
+
+
 

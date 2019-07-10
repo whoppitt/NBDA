@@ -2,18 +2,19 @@
 
 oadaLikelihood_SLdom_byEvent <- function(parVect, nbdadata){
 
-if(is.character(nbdadata)){
+
+  if(is.list(nbdadata)){
 
     totalLikelihood <- NULL;
 
     for(i in 1:length(nbdadata)){
-      subdata <- eval(as.name(nbdadata[i]));
+      subdata <- nbdadata[[i]];
       totalLikelihood <- rbind(totalLikelihood,oadaLikelihood_SLdom_byEvent(parVect= parVect, nbdadata=subdata));
     }
 
     return(totalLikelihood);
 
-}else{
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))

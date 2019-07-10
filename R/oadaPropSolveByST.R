@@ -46,15 +46,23 @@ nbdaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="soci
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
-      retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+      if(is.list(nbdadata)){
+        retainInt<-FALSE
+        for (i in 1:length(nbdadata)){
+          nbdadataTemp2<-nbdadata[[i]];
+          if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+        }
+      }else{
+        retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+      }
     }
   }
   }
 
-  if(nbdaMultiDiff[1]!="NA"){
+  if(is.list(nbdadata)){
     outputMatrix<-NULL
     for(i in 1:length(nbdaMultiDiff)){
-      subdata <- eval(as.name(nbdaMultiDiff[i]));
+      subdata <- nbdadata[[i]];
       outputMatrix<-rbind(outputMatrix,oadaPropSolveByST.byevent(par=par, nbdadata=subdata,type=type,retainInt=retainInt));
     }
 
@@ -273,25 +281,26 @@ nbdaPropSolveByST<-function(par=NULL,nbdadata=NULL,model=NULL,type="social",excl
     if(is.null(par)|is.null(nbdadata)){
       return("Please provide a model or input parameter values with data")
     }
-    if(is.character(nbdadata)){
-      nbdaMultiDiff<-nbdadata;
-      nbdadata<-eval(as.name(nbdaMultiDiff[1]));
-    }else{
+      if(is.character(nbdadata)){
+        newNbdaData<-list()
+        for(i in 1:length(nbdadata)){
+          newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+        }
+        nbdadata<-newNbdaData
+      }
       nbdaMultiDiff<-"NA";
-    }
-  }else{
+    }else{
     par<-model@outputPar;
     nbdadata<-model@nbdadata;
     type<-model@type
-    nbdaMultiDiff<-model@nbdaMultiDiff
   }
   if(is.null(innovations)){
-    if(nbdaMultiDiff[1]=="NA"){
+    if(!is.list(nbdadata)){
     innovations<-is.na(nbdadata@demons[1])*1
   }else{
     innovations<-0
-    for(i in 1:length(nbdaMultiDiff)){
-      subdata <- eval(as.name(nbdaMultiDiff[i]));
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
       innovations<-innovations+is.na(subdata@demons[1])*1
     }
   }

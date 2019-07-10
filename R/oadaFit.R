@@ -4,7 +4,7 @@
 
 
 #Define class of object for the fitted additive model
-setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="nbdaData",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",SLdom="logical"));
+setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="list",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",SLdom="logical"));
 
 
 #Method for initializing addFit object- including model fitting
@@ -13,10 +13,19 @@ setMethod("initialize",
           function (.Object, nbdadata,type,startValue,lower,method,interval,gradient,iterations,standardErrors,SLdom,...)
           {
 
-            #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+            #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
             if(is.character(nbdadata)){
-              nbdadataTemp<-eval(as.name(nbdadata[1]));
+              newNbdaData<-list()
+              for(i in 1:length(nbdadata)){
+                newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+              }
+              nbdadata<-newNbdaData
+            }
+            #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+            if(is.list(nbdadata)){
+              nbdadataTemp<-nbdadata[[1]]
             }else{nbdadataTemp<-nbdadata}
+
 
             #calculate the number of each type of parameter
             noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
@@ -27,10 +36,10 @@ setMethod("initialize",
             if(type=="asocial"){
 
               #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
-              if(is.character(nbdadata)){
+              if(is.list(nbdadata)){
                 retainInt<-FALSE
                 for (i in 1:length(nbdadata)){
-                  nbdadataTemp2<-eval(as.name(nbdadata[i]));
+                  nbdadataTemp2<-nbdadata[[i]];
                   if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
                 }
               }else{
@@ -73,10 +82,10 @@ setMethod("initialize",
               se<-NaN
               hessianMat<-hessianNun<-matrix(NA)
 
-              if(is.character(nbdadata)){
-                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat,se=se, type=type,SLdom=F,...)
+              if(is.list(nbdadata)){
+                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat,se=se, type=type,SLdom=F,...)
               }else{
-                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
+                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=list(NULL),loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
 
               }
 
@@ -192,10 +201,10 @@ setMethod("initialize",
                 }
 
 
-                if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
-                }else{
+                if(is.list(nbdadata)){
                   callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
+                }else{
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=F,...)
 
                 }
               }
@@ -327,10 +336,10 @@ setMethod("initialize",
                 if(!is.matrix(hessianMat))hessianMat<-matrix(hessianMat)
               }
 
-              if(is.character(nbdadata)){
-                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
-              }else{
+              if(is.list(nbdadata)){
                 callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+              }else{
+                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
 
               }
               }else
@@ -471,10 +480,10 @@ setMethod("initialize",
                   if(!is.matrix(hessianMat))hessianMat<-matrix(hessianMat)
                 }
 
-                if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                if(is.list(nbdadata)){
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata,  optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
                 }else{
-                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,SLdom=SLdom,...)
 
                 }
             }
@@ -484,13 +493,34 @@ setMethod("initialize",
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
 oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
-  if(type=="social"|type=="asocial"){
+
+  if(class(nbdadata)!="nbdaData"){
+    if(class(nbdadata)=="list"){
+      if(class(nbdadata[[1]])!="nbdaData"){
+        cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
+        return(NULL)
+      }
+    }else{
+      cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
+      return(NULL)
+    }
+  }
+    if(type=="social"|type=="asocial"){
+
+    #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
+    if(is.character(nbdadata)){
+      newNbdaData<-list()
+      for(i in 1:length(nbdadata)){
+        newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+      }
+      nbdadata<-newNbdaData
+    }
 
     #Check if trueTies are present
     trueTiesPresent<-F
-    if(is.character(nbdadata)){
+    if(is.list(nbdadata)){
       for(i in length(nbdadata)){
-        nbdadataTemp<-eval(as.name(nbdadata[1]));
+        nbdadataTemp<-nbdadata[[1]];
         if(!is.null(nbdadataTemp@trueTies[[1]])) trueTiesPresent<-T
       }
 
@@ -505,8 +535,8 @@ oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(
     if(is.null(coxmeFit)){
 
       #If a coxme model is not specified either way- fit a coxme model if random effects are specified and a normal model if not
-      if(is.character(nbdadata)){
-        nbdadataTemp<-eval(as.name(nbdadata[1]));
+      if(is.list(nbdadata)){
+        nbdadataTemp<-nbdadata[[1]];
       }else{nbdadataTemp<-nbdadata}
       if(nbdadataTemp@random_effects[1]=="REabsent"){coxmeFit=F}else{coxmeFit=T}
     }

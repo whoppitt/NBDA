@@ -1,6 +1,3 @@
-#Editted for constrained model
-#test
-
 asocialTadaGradient_fn <- function(parVect, nbdadata,retainInt=NULL,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
 
   # Since this is faster when components need to be calulated using the grad function anyway
@@ -16,7 +13,7 @@ asocialTadaGradient_fn <- function(parVect, nbdadata,retainInt=NULL,baseline="co
     if(is.character(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
+        nbdadataTemp2<-nbdadata[[i]];
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
@@ -24,21 +21,23 @@ asocialTadaGradient_fn <- function(parVect, nbdadata,retainInt=NULL,baseline="co
     }
   }
 
+  if(is.list(nbdadata)){
 
-if(is.character(nbdadata)){
+    totalGradient <- rep(0, length(parVect));
 
-		totalGradient <- rep(0, length(parVect));
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalGradient <- totalGradient+ asocialTadaGradient_fn(parVect= parVect, nbdadata=subdata,retainInt=retainInt,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+    }
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalGradient <- totalGradient + asocialTadaGradient_fn(parVect= parVect, nbdadata=subdata,retainInt=retainInt,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz);
-			}
+    return(totalGradient);
 
-		return(totalGradient);
+  }else{
 
-}else{
-
-
+  #If the object is a dTADAData object return the likelihood for the discrete time of acquisition diffusion analysis
+  if(class(nbdadata)=="dTADAData"){
+    return(asocialDisTadaGradient_fnNum(parVect=parVect, nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
+  }else{
 
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadata@stMetric)[2] #s parameters
@@ -260,7 +259,7 @@ if(is.character(nbdadata)){
 
   gradient <- c(haz_grad,asocial_grad, social_grad, multi_grad)
   return(-gradient)
-}
+}}
 } # end function
 
 # For the gamma function- since numerical approximations are used,it is quicker to just numerically approximate the whole thing thus:
@@ -268,7 +267,9 @@ asocialTadaGradient_fnNum <- function(parVect, nbdadata,retainInt=NULL,baseline=
   grad(asocialTadaLikelihood,parVect,nbdadata=nbdadata,retainInt=NULL,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
 }
 
-
+asocialDisTadaGradient_fnNum <- function(parVect, nbdadata,retainInt=NULL,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
+  grad(asocialDisTadaLikelihood,parVect,nbdadata=nbdadata,retainInt=NULL,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz)
+}
 
 
 

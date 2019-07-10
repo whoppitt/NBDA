@@ -1,25 +1,23 @@
-#Editted for constrained model
+#for dTADA model
 
-tadaLikelihood <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
+dTadaLikelihood <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
 
+if(is.list(nbdadata)){
 
-  if(is.list(nbdadata)){
+		totalLikelihood <- 0;
 
-    totalLikelihood <- 0;
+		for(i in 1:length(nbdadata)){
+			subdata <- nbdadata[[i]];
+			totalLikelihood <- totalLikelihood+ dTadaLikelihood(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+			}
 
-    for(i in 1:length(nbdadata)){
-      subdata <- nbdadata[[i]];
-      totalLikelihood <- totalLikelihood+ tadaLikelihood(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
-    }
+		return(totalLikelihood);
 
-    return(totalLikelihood);
+}else{
 
-  }else{
-
-  #If the object is a dTADAData object return the likelihood for the discrete time of acquisition diffusion analysis
-  if(class(nbdadata)=="dTADAData"){
-    return(dTadaLikelihood(parVect=parVect, nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
-  }else{
+  if(class(nbdadata)!="dTADAData"){
+    return("dTADALikelihood for use with dTADAData only")
+  }
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
@@ -93,38 +91,11 @@ tadaLikelihood <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=
 	unscaled.st <- apply(sParam.mat*nbdadata@stMetric, MARGIN=1, FUN=sum)
 	unscaled.st<-unscaled.st+nbdadata@offsetCorrection[,1]
 
-	#The totalRate is set to zero for naive individuals not in the diffusion for a given event
+	#The totalRate is set to zero for naive individuals not in the diffusion for a given period
 	#This is the total relative rate from OADA- the beaseline hazard is dealt with in a separate component of the logLik here
 	totalRate <- (exp(asocialLP) + exp(socialLP)*unscaled.st)* presentInDiffusion
 
-	#Take logs and add across acquisition events
-	lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
-
-	solveTimes<-nbdadata@TADAtime2[nbdadata@status==1]
-
-	#Plug into provided baseline hazard function
-	if(baseline=="constant"){
-    solveHazards<-(1/hazFunctPars)+0*solveTimes
-	}
-  if(baseline=="gamma"){
-	  rate=1/hazFunctPars[1]
-	  shape=hazFunctPars[2]
-	  solveHazards<-dgamma(solveTimes,shape=shape,rate=rate)/pgamma(solveTimes,shape=shape,rate=rate, lower = FALSE)
-  }
-	if(baseline=="weibull"){
-	  scale=hazFunctPars[1]
-	  shape=hazFunctPars[2]
-	  solveHazards<-dweibull(solveTimes,shape=shape,scale=scale)/pweibull(solveTimes,shape=shape,scale=scale, lower = FALSE)
-	}
-	if(baseline=="custom"){
-	  solveHazards<-hazFunct(hazFunctPars,solveTimes)
-	}
-
-	lComp2<-sum(log(solveHazards))
-	#log baseline hazards for solvers at times of solving
-
-	#lComp3
-	#Summed relative rates x difference in cumumative baseline hazards
+	#Plug into provided baseline hazard function to get cumlative hazard at start-end
 
 	if(baseline=="constant"){
 	  cumHazards1<-(1/hazFunctPars)*nbdadata@TADAtime1
@@ -147,13 +118,16 @@ tadaLikelihood <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=
 	  cumHazDiff<-cumHazards1-cumHazards2
 	}
 
-	lComp3.1 <- tapply(totalRate*cumHazDiff, INDEX=nbdadata@event.id, FUN=sum)
-  lComp3.2 <- sum(lComp3.1)
+	#For non-solvers in each time period
+  lComp1<- sum((totalRate*cumHazDiff)[nbdadata@status==0])
+  #For solvers in each time period
+  lComp2<- sum(log(1-exp((totalRate*cumHazDiff)[nbdadata@status==1])))
 
-	negloglik <- -lComp1-lComp2-lComp3.2
+
+	negloglik <- -lComp1-lComp2
 
 	return(negloglik)
-	}}
+	}
 }
 
 

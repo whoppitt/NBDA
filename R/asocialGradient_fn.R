@@ -9,7 +9,7 @@ asocialGradient_fn <- function(parVect, nbdadata,retainInt=NULL){
     if(is.character(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
+        nbdadataTemp2<-nbdadata[[i]];
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
@@ -17,19 +17,18 @@ asocialGradient_fn <- function(parVect, nbdadata,retainInt=NULL){
     }
   }
 
+  if(is.list(nbdadata)){
 
-if(is.character(nbdadata)){
+    totalGradient <- rep(0, length(parVect));
 
-		totalGradient <- rep(0, length(parVect));
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalGradient <- totalGradient + asocialGradient_fn(parVect= parVect, nbdadata=subdata,retainInt = retainInt);
+    }
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalGradient <- totalGradient + asocialGradient_fn(parVect= parVect, nbdadata=subdata,retainInt=retainInt);
-			}
+    return(totalGradient);
 
-		return(totalGradient);
-
-}else{
+  }else{
 
 
 

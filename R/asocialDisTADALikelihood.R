@@ -1,13 +1,14 @@
-#Now corrected for trueTies
+#Editted for constrained model
+#No need for sOffset type anymore- since the ILVs are provided separately for additive, interactive and multiplicative effects
 
-asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
+asocialDisTadaLikelihood <- function(parVect, nbdadata, retainInt=NULL,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
   #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
   #This will be passed on by the model fitting function, but if the function is called independently we need to calculate this here
   if(is.null(retainInt)){
-    if(is.list(nbdadata)){
+    if(is.character(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-nbdadata[[i]];
+        nbdadataTemp2<-eval(as.name(nbdadata[i]));
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
@@ -15,19 +16,18 @@ asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
     }
   }
 
+if(is.character(nbdadata)){
 
-  if(is.list(nbdadata)){
+		totalLikelihood <- 0;
 
-    totalLikelihood <- 0;
+		for(i in 1:length(nbdadata)){
+			subdata <- eval(as.name(nbdadata[i]));
+			totalLikelihood <- totalLikelihood+ asocialTadaLikelihood(parVect= parVect, nbdadata=subdata,retainInt=retainInt,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+			}
 
-    for(i in 1:length(nbdadata)){
-      subdata <- nbdadata[[i]];
-      totalLikelihood <- totalLikelihood + asocialLikelihood(parVect= parVect, nbdadata=subdata,retainInt = retainInt);
-    }
+		return(totalLikelihood);
 
-    return(totalLikelihood);
-
-  }else{
+}else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
@@ -43,13 +43,20 @@ asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
 	if(nbdadata@int_ilv[1]=="ILVabsent") noILVint<-0
 	if(nbdadata@multi_ilv[1]=="ILVabsent") noILVmulti<-0
 
-	includeInOADA<-nbdadata@event.id %in% nbdadata@event.id[nbdadata@status==1]
-	#Exclude the lines of data corresponding to the final period to endtime, if necedssary
-	datalength <- sum(includeInOADA)
+	datalength <- dim(nbdadata@stMetric)[1]
 
 	#Extract vector giving which naive individuals were present in the diffusion for each acqusition event
-	presentInDiffusion<-nbdadata@ presentInDiffusion[includeInOADA]
+	presentInDiffusion<-nbdadata@ presentInDiffusion
 
+	#assign different parameter values to the right vectors
+
+
+	if(baseline=="constant") noHazFunctPars<-1
+	if(baseline=="gamma") noHazFunctPars<-2
+	if(baseline=="weibull") noHazFunctPars<-2
+
+	hazFunctPars<-parVect[1:noHazFunctPars]
+	parVect<-parVect[-(1:noHazFunctPars)]
 
 	#Extend par to include 0 s parameters
 	parVect<-c(rep(0,noSParam),parVect)
@@ -86,10 +93,10 @@ asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
 	  asocialLP<-rep(0,datalength)
 	}else{
 	  asocialCoef.mat <- matrix(data=rep(asocialCoef, datalength), nrow=datalength, byrow=T)
-	  asocial.sub <- nbdadata@asocILVdata[includeInOADA,]
+	  asocial.sub <- nbdadata@asocILVdata[,]
 	  asocialLP <- apply(asocialCoef.mat*asocial.sub, MARGIN=1, FUN=sum)
 	}
-	asocialLP<-asocialLP+nbdadata@offsetCorrection[includeInOADA,2]
+	asocialLP<-asocialLP+nbdadata@offsetCorrection[,2]
 
 
 	# now calculate the multiplicative LP and add to the asocial LP
@@ -97,13 +104,13 @@ asocialLikelihood <- function(parVect, nbdadata, retainInt=NULL){
 	  multiLP<-rep(0,datalength)
 	}else{
 	  multiCoef.mat <- matrix(data=rep(multiCoef, datalength), nrow=datalength, byrow=T)
-	  multi.sub <- nbdadata@multiILVdata[includeInOADA,]
+	  multi.sub <- nbdadata@multiILVdata[,]
 	  multiLP <- apply(multiCoef.mat*multi.sub, MARGIN=1, FUN=sum)
 	}
-	multiLP<-multiLP+nbdadata@offsetCorrection[includeInOADA,4]
+	multiLP<-multiLP+nbdadata@offsetCorrection[,4]
 	asocialLP<-asocialLP+multiLP
 
-	unscaled.st<-nbdadata@offsetCorrection[includeInOADA,1]
+	unscaled.st<-nbdadata@offsetCorrection[,1]
 
 
 #Allow for the fact that the user might provide offsets to the s parameters which might need to be accounted for
@@ -117,31 +124,51 @@ if(retainInt){
 	  socialLP<-rep(0,datalength)
 	}else{
 	  intCoef.mat <- matrix(data=rep(intCoef, datalength), nrow=datalength, byrow=T)
-	  int.sub <- nbdadata@intILVdata[includeInOADA,]
+	  int.sub <- nbdadata@intILVdata[,]
 	  socialLP <- apply(intCoef.mat*int.sub, MARGIN=1, FUN=sum)
 	}
   # calculate
-	socialLP<-socialLP+nbdadata@offsetCorrection[includeInOADA,3]+multiLP
+	socialLP<-socialLP+nbdadata@offsetCorrection[,3]+multiLP
 }else{socialLP<-rep(0,datalength)}
 
 
 	#The totalRate is set to zero for naive individuals not in the diffusion for a given event
 	totalRate <- (exp(asocialLP) + exp(socialLP)*unscaled.st)* presentInDiffusion
 
-	#Take logs and add across acquisition events
-	lComp1 <- sum(log(totalRate[nbdadata@status==1])) # group by skilled
+	#lComp3
+	#Summed relative rates x difference in cumumative baseline hazards
 
-	lComp2.1 <- tapply(totalRate, INDEX=nbdadata@event.id[includeInOADA], FUN=sum) # check this works. this is total rate per event across all naive id
-	lComp2.2 <- sum(log(lComp2.1))
-
-	negloglik <- lComp2.2 - lComp1
-
-	if(!is.null(nbdadata@trueTies[[1]])){
-	  negloglik<-negloglik+asocialCorrectTrueTies(parVect,nbdadata)
+	if(baseline=="constant"){
+	  cumHazards1<-(1/hazFunctPars)*nbdadata@TADAtime1
+	  cumHazards2<-(1/hazFunctPars)*nbdadata@TADAtime2
+	  cumHazDiff<-cumHazards1-cumHazards2
 	}
+	if(baseline=="gamma"){
+	  cumHazards1<--pgamma(nbdadata@TADAtime1,shape=shape,rate=rate, lower = FALSE, log = TRUE)
+	  cumHazards2<--pgamma(nbdadata@TADAtime2,shape=shape,rate=rate, lower = FALSE, log = TRUE)
+	  cumHazDiff<-cumHazards1-cumHazards2
+	}
+	if(baseline=="weibull"){
+	  cumHazards1<--pweibull(nbdadata@TADAtime1,shape=shape,scale=scale, lower = FALSE, log = TRUE)
+	  cumHazards2<--pweibull(nbdadata@TADAtime2,shape=shape,scale=scale, lower = FALSE, log = TRUE)
+	  cumHazDiff<-cumHazards1-cumHazards2
+	}
+	if(baseline=="custom"){
+	  cumHazards1<-cumHaz(hazFunctPars,nbdadata@TADAtime1)
+	  cumHazards2<-cumHaz(hazFunctPars,nbdadata@TADAtime2)
+	  cumHazDiff<-cumHazards1-cumHazards2
+	}
+
+	#For non-solvers in each time period
+	lComp1<- sum((totalRate*cumHazDiff)[nbdadata@status==0])
+	#For solvers in each time period
+	lComp2<- sum(log(1-exp((totalRate*cumHazDiff)[nbdadata@status==1])))
+
+
+	negloglik <- -lComp1-lComp2
+
 	return(negloglik)
 	}
 }
-
 
 

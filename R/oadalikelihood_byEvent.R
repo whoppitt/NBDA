@@ -2,16 +2,16 @@
 
 oadaLikelihood_byEvent <- function(parVect, nbdadata){
 
-if(is.character(nbdadata)){
+  if(is.list(nbdadata)){
 
-		totalLikelihood <- NULL;
+  totalLikelihood <- NULL;
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalLikelihood <- rbind(totalLikelihood,oadaLikelihood_byEvent(parVect= parVect, nbdadata=subdata));
-			}
+  for(i in 1:length(nbdadata)){
+    subdata <- nbdadata[[i]];
+    totalLikelihood <- rbind(totalLikelihood,oadaLikelihood_byEvent(parVect= parVect, nbdadata=subdata));
+  }
 
-		return(totalLikelihood);
+  return(totalLikelihood);
 
 }else{
 

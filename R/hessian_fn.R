@@ -17,12 +17,12 @@ hessian_fn <- function(parVect, nbdadata,type="social",retainInt=NULL){
 hessian_fn.social <- function(parVect, nbdadata){
 
 
-  if(is.character(nbdadata)){
+  if(is.list(nbdadata)){
 
     totalHessian <- matrix(rep(0, length(parVect)*length(parVect)),ncol=length(parVect));
 
     for(i in 1:length(nbdadata)){
-      subdata <- eval(as.name(nbdadata[i]));
+      subdata <- nbdadata[[i]];
       totalHessian <- totalHessian + hessian_fn.social(parVect= parVect, nbdadata=subdata);
     }
 

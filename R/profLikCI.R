@@ -2,18 +2,21 @@ plotProfLik<-function(which,model,range,constraintsVect=NULL,resolution=20,itera
 
   whichIn<-which
 
-  if(model@nbdaMultiDiff[1]=="NA"){
-	    nbdadata<-model@nbdadata
-	  }else{
-	    nbdadata<-model@nbdaMultiDiff
-	    #return("Please provide specify data underlying this multi diffusion model")
-	}
+  nbdadata<-model@nbdadata
+
+  #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
+  if(is.character(nbdadata)){
+    newNbdaData<-list()
+    for(i in 1:length(nbdadata)){
+      newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+    }
+    nbdadata<-newNbdaData
+  }
 
   #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
-  if(is.character(nbdadata)){
-    nbdadataTemp<-eval(as.name(nbdadata[1]));
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]]
   }else{nbdadataTemp<-nbdadata}
-
 
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
@@ -30,10 +33,10 @@ plotProfLik<-function(which,model,range,constraintsVect=NULL,resolution=20,itera
 
 	#If it was an asocial model- was the interaction retained?
 	if(is.null(retainInt)){
-	  if(is.character(nbdadata)){
+	  if(is.list(nbdadata)){
 	    retainInt<-FALSE
 	    for (i in 1:length(nbdadata)){
-	      nbdadataTemp2<-eval(as.name(nbdadata[i]));
+	      nbdadataTemp2<-nbdadata[[i]];
 	      if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
 	    }
 	  }else{
@@ -91,10 +94,13 @@ for(i in 1:length(xVals)){
   offsetVect[which]<-xVals[i]
 
 		#Create the necessary constrained data objects
-		if(is.character(nbdadata)){
-		  nbdadataTemp<-paste(nbdadata,"Temp",sep="")
+		if(is.list(nbdadata)){
+#		  randomLabel<-as.character(round(runif(1,0,9999),0))
+#		  nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
+		  nbdadataTemp<-list()
 		  for(dataset in 1:length(nbdadata)){
-		    assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=eval(as.name(nbdadata[dataset])),constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+		    #assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+		    nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
 		  }
 		}else{
 		  nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
@@ -145,9 +151,18 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
     #return("Please provide specify data underlying this multi diffusion model")
   }
 
-  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
   if(is.character(nbdadata)){
-    nbdadataTemp<-eval(as.name(nbdadata[1]));
+    newNbdaData<-list()
+    for(i in 1:length(nbdadata)){
+      newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+    }
+    nbdadata<-newNbdaData
+  }
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]]
   }else{nbdadataTemp<-nbdadata}
 
   #calculate the number of each type of parameter
@@ -165,15 +180,13 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
 
   #If it was an asocial model- was the interaction retained?
   if(is.null(retainInt)){
-    if(is.character(nbdadata)){
-      retainInt<-FALSE
-      for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
-        if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
-      }
-    }else{
-      retainInt<-sum(nbdadata@offsetCorrection[,1])>0
-    }
+      if(is.list(nbdadata)){
+        retainInt<-FALSE
+        for (i in 1:length(nbdadata)){
+          nbdadataTemp2<-nbdadata[[i]];
+          if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+        }
+      }else retainInt<-sum(nbdadata@offsetCorrection[,1])>0
   }
 
   #If no constraints vector is specified, then just constrain the parameter being varied to 0 (the add appropriate offset later)
@@ -222,10 +235,11 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
   offsetVect[which]<-value
 
   #Create the necessary constrained data objects
-  if(is.character(nbdadata)){
-    nbdadataTemp<-paste(nbdadata,"Temp",sep="")
+  if(is.list(nbdadata)){
+    randomLabel<-as.character(round(runif(1,0,9999),0))
+    nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
     for(dataset in 1:length(nbdadata)){
-      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=eval(as.name(nbdadata[dataset])),constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
     }
   }else{
      nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
@@ -259,9 +273,18 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
     #return("Please provide specify data underlying this multi diffusion model")
   }
 
-  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
   if(is.character(nbdadata)){
-    nbdadataTemp<-eval(as.name(nbdadata[1]));
+    newNbdaData<-list()
+    for(i in 1:length(nbdadata)){
+      newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+    }
+    nbdadata<-newNbdaData
+  }
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]]
   }else{nbdadataTemp<-nbdadata}
 
   #calculate the number of each type of parameter
@@ -280,10 +303,10 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
   #If it was an asocial model- was the interaction retained?
   originalRetainInt<-retainInt
   if(is.null(retainInt)){
-    if(is.character(nbdadata)){
+    if(is.list(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
+        nbdadataTemp2<-nbdadata[[i]];
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
@@ -335,10 +358,11 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
   offsetVect[which]<-0
 
   #Create the necessary constrained data objects
-  if(is.character(nbdadata)){
-    nbdadataTemp<-paste(nbdadata,"Temp",sep="")
+  if(is.list(nbdadata)){
+    randomLabel<-as.character(round(runif(1,0,9999),0))
+    nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
     for(dataset in 1:length(nbdadata)){
-      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=eval(as.name(nbdadata[dataset])),constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
     }
   }else{
     nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
@@ -389,6 +413,9 @@ oadaProfileLikelihood<-function(which,value,nbdadata,startValue=NULL,lower=NULL,
   #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
   if(is.character(nbdadata)){
     nbdadataTemp<-eval(as.name(nbdadata[1]));
+  }
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]];
   }else{nbdadataTemp<-nbdadata}
 
   #calculate the number of each type of parameter
@@ -459,7 +486,10 @@ distanceFromCutoffTrueTies<-function(value,which,model,inflation=1,conf=0.95,sta
   #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
   if(is.character(nbdadata)){
     nbdadataTemp<-eval(as.name(nbdadata[1]));
-  }else{nbdadataTemp<-nbdadata}
+  }
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]];
+  }  else{nbdadataTemp<-nbdadata}
 
   #calculate the number of each type of parameter
   noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters

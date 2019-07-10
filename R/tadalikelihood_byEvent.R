@@ -2,18 +2,18 @@
 
 tadaLikelihood_byevent <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
 
-if(is.character(nbdadata)){
+  if(is.class(nbdadata)){
 
-		totalLikelihood <- NULL;
+    totalLikelihood <- NULL;
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalLikelihood <- rbind(totalLikelihood,tadaLikelihood_byevent(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars));
-			}
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- rbind(totalLikelihood,tadaLikelihood_byevent(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars));
+    }
 
-		return(totalLikelihood);
+    return(totalLikelihood);
 
-}else{
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
