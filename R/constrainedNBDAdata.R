@@ -1,6 +1,3 @@
-# Editted for constrained model
-# Wrapper functions also included
-
 # A function that takes an oaData object and a set of constraints and creates a new oaData object, such that when a model is fitted the constraints are implemented
 # Currently only works for additive and multiplicative not unconstrained
 # For unconstrained I need another ILVdata part to the nbdaData object which I can put the constrained data for the interaction in
@@ -67,6 +64,19 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   }
   }
   newNBDAdata@stMetric<-tempstMetric
+
+  newAssMatrixDims<-dim(nbdadata@assMatrix)
+  newAssMatrixDims[3]<-length(unique(sConstraintsVect[sConstraintsVect>0]))
+  newNBDAdata@assMatrix<-array(NA,dim=newAssMatrixDims)
+
+  #Rearrange assMatrix (this is just used for trueTies)
+  for(i in 1:length(unique(sConstraintsVect[sConstraintsVect>0]))){
+  if(sum(sConstraintsVect==unique(sConstraintsVect)[i])==1){
+    newNBDAdata@assMatrix[,,i,]<-nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],]
+  }else{
+    newNBDAdata@assMatrix[,,i,]<-apply(nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],],c(1,2,4),sum)
+  }
+  }
 
   tempasocILVdata<-newasoc<-NULL
   if(length(unique(asocILVConstraintsVect)[unique(asocILVConstraintsVect)>0])==0){

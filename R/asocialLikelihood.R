@@ -137,7 +137,7 @@ if(retainInt){
 	negloglik <- lComp2.2 - lComp1
 
 	if(!is.null(nbdadata@trueTies[[1]])){
-	  negloglik<-negloglik+asocialCorrectTrueTies(parVect,nbdadata)
+	  negloglik<-negloglik+asocialCorrectTrueTies(parVect[-(1:noSParam)],nbdadata)
 	}
 	return(negloglik)
 	}
