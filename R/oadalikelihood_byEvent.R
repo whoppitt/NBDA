@@ -13,6 +13,19 @@ if(is.character(nbdadata)){
 
 		return(totalLikelihood);
 
+}
+
+  if(is.list(nbdadata)){
+
+  totalLikelihood <- NULL;
+
+  for(i in 1:length(nbdadata)){
+    subdata <- nbdadata[[i]];
+    totalLikelihood <- rbind(totalLikelihood,oadaLikelihood_byEvent(parVect= parVect, nbdadata=subdata));
+  }
+
+  return(totalLikelihood);
+
 }else{
 
 

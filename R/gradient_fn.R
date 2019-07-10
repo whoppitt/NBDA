@@ -5,18 +5,18 @@
 
 gradient_fn <- function(parVect, nbdadata){
 
-if(is.character(nbdadata)){
+  if(is.list(nbdadata)){
 
-		totalGradient <- rep(0, length(parVect));
+    totalGradient <- rep(0, length(parVect));
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalGradient <- totalGradient + gradient_fn(parVect= parVect, nbdadata=subdata);
-			}
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalGradient <- totalGradient + gradient_fn(parVect= parVect, nbdadata=subdata);
+    }
 
-		return(totalGradient);
+    return(totalGradient);
 
-}else{
+  }else{
 
   if(!is.null(nbdadata@trueTies[[1]])){
     return(grad(oadaLikelihood,parVect, nbdadata=nbdadata))

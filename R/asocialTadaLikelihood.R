@@ -5,10 +5,10 @@ asocialTadaLikelihood <- function(parVect, nbdadata, retainInt=NULL,baseline="co
   #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
   #This will be passed on by the model fitting function, but if the function is called independently we need to calculate this here
   if(is.null(retainInt)){
-    if(is.character(nbdadata)){
+    if(is.list(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
+        nbdadataTemp2<-nbdadata[[i]];
         if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
@@ -16,18 +16,23 @@ asocialTadaLikelihood <- function(parVect, nbdadata, retainInt=NULL,baseline="co
     }
   }
 
-if(is.character(nbdadata)){
+  if(is.list(nbdadata)){
 
-		totalLikelihood <- 0;
+    totalLikelihood <- 0;
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalLikelihood <- totalLikelihood+ asocialTadaLikelihood(parVect= parVect, nbdadata=subdata,retainInt=retainInt,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
-			}
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- totalLikelihood+ asocialTadaLikelihood(parVect= parVect, nbdadata=subdata,retainInt=retainInt,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+    }
 
-		return(totalLikelihood);
+    return(totalLikelihood);
 
-}else{
+  }else{
+
+  #If the object is a dTADAData object return the likelihood for the discrete time of acquisition diffusion analysis
+  if(class(nbdadata)=="dTADAData"){
+    return(asocialDisTadaLikelihood(parVect=parVect, nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
@@ -194,6 +199,6 @@ if(retainInt){
 
 	return(negloglik)
 	}
-}
+}}
 
 

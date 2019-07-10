@@ -4,7 +4,7 @@
 
 
 #Define class of object for the fitted additive model
-setClass("tadaFit",representation(nbdaMultiDiff="character",nbdadata="nbdaData",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",baseline="character",noHazFunctPars="numeric",hazFunct="function",cumHaz="function"));
+setClass("tadaFit",representation(nbdaMultiDiff="character",nbdadata="list",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",baseline="character",noHazFunctPars="numeric",hazFunct="function",cumHaz="function"));
 
 
 #Method for initializing addFit object- including model fitting
@@ -17,9 +17,18 @@ setMethod("initialize",
             if(baseline=="gamma") noHazFunctPars<-2
             if(baseline=="weibull") noHazFunctPars<-2
 
-            #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+             #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
             if(is.character(nbdadata)){
-              nbdadataTemp<-eval(as.name(nbdadata[1]));
+              newNbdaData<-list()
+              for(i in 1:length(nbdadata)){
+                newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[1]))))
+              }
+              nbdadata<-newNbdaData
+            }
+
+            #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+            if(is.list(nbdadata)){
+              nbdadataTemp<-nbdadata[[1]]
             }else{nbdadataTemp<-nbdadata}
 
             if(is.na(nbdadataTemp@TADAtime1[1])){
@@ -36,10 +45,10 @@ setMethod("initialize",
             if(type=="asocial"){
 
               #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
-              if(is.character(nbdadata)){
+              if(is.list(nbdadata)){
                 retainInt<-FALSE
                 for (i in 1:length(nbdadata)){
-                  nbdadataTemp2<-eval(as.name(nbdadata[i]));
+                  nbdadataTemp2<-nbdadata[[i]];
                   if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
                 }
               }else{
@@ -161,10 +170,10 @@ setMethod("initialize",
                 }
 
 
-                if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
-                }else{
+                if(is.list(nbdadata)){
                   callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
+                }else{
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
 
                 }
             }
@@ -289,11 +298,10 @@ setMethod("initialize",
                 if(!is.matrix(hessianMat))hessianMat<-matrix(hessianMat)
               }
 
-              if(is.character(nbdadata)){
-                callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
-              }else{
+              if(is.list(nbdadata)){
                 callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
-
+              }else{
+                callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,optim=fit2,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz,...)
               }
 
 

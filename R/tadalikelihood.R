@@ -13,7 +13,25 @@ if(is.character(nbdadata)){
 
 		return(totalLikelihood);
 
-}else{
+}
+
+  if(is.list(nbdadata)){
+
+    totalLikelihood <- 0;
+
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- totalLikelihood+ tadaLikelihood(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars);
+    }
+
+    return(totalLikelihood);
+
+  }else{
+
+  #If the object is a dTADAData object return the likelihood for the discrete time of acquisition diffusion analysis
+  if(class(nbdadata)=="dTADAData"){
+    return(dTadaLikelihood(parVect=parVect, nbdadata=nbdadata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz))
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
@@ -147,7 +165,7 @@ if(is.character(nbdadata)){
 	negloglik <- -lComp1-lComp2-lComp3.2
 
 	return(negloglik)
-	}
+	}}
 }
 
 

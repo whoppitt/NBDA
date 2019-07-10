@@ -13,7 +13,19 @@ if(is.character(nbdadata)){
 
 		return(totalLikelihood);
 
-}else{
+}
+  if(is.list(nbdadata)){
+
+    totalLikelihood <- 0;
+
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- totalLikelihood+ oadaLikelihood_SLdom(parVect= parVect, nbdadata=subdata);
+    }
+
+    return(totalLikelihood);
+
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))

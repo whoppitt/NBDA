@@ -13,7 +13,19 @@ if(is.character(nbdadata)){
 
 		return(totalLikelihood);
 
-}else{
+}
+  if(is.class(nbdadata)){
+
+    totalLikelihood <- NULL;
+
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- rbind(totalLikelihood,tadaLikelihood_byevent(parVect= parVect, nbdadata=subdata,baseline=baseline,hazFunct=hazFunct,cumHaz=cumHaz,noHazFunctPars=noHazFunctPars));
+    }
+
+    return(totalLikelihood);
+
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))

@@ -28,6 +28,19 @@ hessian_fn.social <- function(parVect, nbdadata){
 
     return(totalHessian);
 
+  }
+
+  if(is.list(nbdadata)){
+
+    totalHessian <- matrix(rep(0, length(parVect)*length(parVect)),ncol=length(parVect));
+
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalHessian <- totalHessian + hessian_fn.social(parVect= parVect, nbdadata=subdata);
+    }
+
+    return(totalHessian);
+
   }else{
 
     #Define required function

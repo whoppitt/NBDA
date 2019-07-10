@@ -4,7 +4,7 @@
 
 #Define class of object for the fitted additive model
 setClass("tadaAICtable",representation(nbdaMultiDiff
-="character",nbdadata="nbdaData",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",MLEhaz="matrix",SEhaz="matrix",typeVect="character",baselineVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
+="character",nbdadata="list",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix", MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",MLEhaz="matrix",SEhaz="matrix",typeVect="character",baselineVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
 
 
 #Method for initializing addFit object- including model fitting
@@ -19,10 +19,24 @@ setMethod("initialize",
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
     if(is.null(baselineVect)){baselineVect<-rep("constant",dim(constraintsVectMatrix)[1])}
 
-	 	#If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
-    	if(is.character(nbdadata)){
-    	  nbdadataTemp1<-eval(as.name(nbdadata[1]));
-    	}else{nbdadataTemp1<-nbdadata}
+      #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
+      if(is.character(nbdadata)){
+        newNbdaData<-list()
+        for(i in 1:length(nbdadata)){
+          newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[1]))))
+        }
+        nbdadata<-newNbdaData
+      }
+
+      #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+      if(is.list(nbdadata)){
+        nbdadataTemp1<-nbdadata[[1]]
+      }else{nbdadataTemp1<-nbdadata}
+
+      if(is.na(nbdadataTemp1@TADAtime1[1])){
+        print("TADA times absent from nbdaData object")
+        return(NULL)
+      }
 
 		#if offset matrix is null set it up to contain zeroes
 		if(is.null(offsetVectMatrix)) offsetVectMatrix<-constraintsVectMatrix*0
@@ -118,11 +132,11 @@ setMethod("initialize",
 		  }
 
 		  #Create the necessary constrained data objects
-		  if(is.character(nbdadata)){
-		    nbdadataTemp<-paste(nbdadata,"Temp",sep="")
+		  if(is.list(nbdadata)){
+		    nbdadataTemp<-list()
 		    for(dataset in 1:length(nbdadata)){
-		      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=eval(as.name(nbdadata[dataset])),constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
-		      }
+		      nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
+		    }
 		  }else{
 		    nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
 		  }
@@ -317,24 +331,13 @@ setMethod("initialize",
 		}
 
 
-
-		if(is.character(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
-		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
-		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
-		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
-		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
-		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
-
-		}
-		if(is.character(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadataTemp1,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		if(is.list(nbdadata)){
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
 		                 baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,
 		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
 		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
 		                 baselineVect=baselineVect, MLEhaz= MLEhaz,SEhaz= SEhaz,
 		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
 		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
@@ -425,8 +428,8 @@ combineTadaAICtables<-function(tadaAICtableList,aicUse="aicc",netComboModifier=r
 
 
   #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
-  if(is.character(nbdadata)){
-    nbdadataTemp1<-eval(as.name(nbdadata[1]));
+  if(is.list(nbdadata)){
+    nbdadataTemp1<-nbdadata[[1]];
   }else{nbdadataTemp1<-nbdadata}
 
   noModels<-dim(constraintsVectMatrix)[1]

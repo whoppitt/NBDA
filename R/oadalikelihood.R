@@ -2,18 +2,18 @@
 
 oadaLikelihood <- function(parVect, nbdadata){
 
-if(is.character(nbdadata)){
+  if(is.list(nbdadata)){
 
-		totalLikelihood <- 0;
+    totalLikelihood <- 0;
 
-		for(i in 1:length(nbdadata)){
-			subdata <- eval(as.name(nbdadata[i]));
-			totalLikelihood <- totalLikelihood+ oadaLikelihood(parVect= parVect, nbdadata=subdata);
-			}
+    for(i in 1:length(nbdadata)){
+      subdata <- nbdadata[[i]];
+      totalLikelihood <- totalLikelihood+ oadaLikelihood(parVect= parVect, nbdadata=subdata);
+    }
 
-		return(totalLikelihood);
+    return(totalLikelihood);
 
-}else{
+  }else{
 
 	#Define required function
 	sumWithoutNA <- function(x) sum(na.omit(x))
