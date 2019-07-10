@@ -233,7 +233,7 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
 
   #Create the necessary constrained data objects
   if(is.list(nbdadata)){
-    nbdadataTemp<-list
+    nbdadataTemp<-list()
     for(dataset in 1:length(nbdadata)){
       nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
     }
