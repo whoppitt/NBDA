@@ -494,6 +494,15 @@ setMethod("initialize",
 #Function for implementing the initialization and choosing between normal and oada.coxme version
 oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
 
+    #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
+  if(is.character(nbdadata)){
+    newNbdaData<-list()
+    for(i in 1:length(nbdadata)){
+      newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+    }
+    nbdadata<-newNbdaData
+  }
+
   if(class(nbdadata)!="nbdaData"){
     if(class(nbdadata)=="list"){
       if(class(nbdadata[[1]])!="nbdaData"){
