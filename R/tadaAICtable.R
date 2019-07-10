@@ -355,6 +355,16 @@ tadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL,baselineV
                         startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,combineTables=F,
                         MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL, MLEhaz=NULL,SEhaz=NULL,
                         convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
+
+  #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
+  if(is.character(nbdadata)){
+    newNbdaData<-list()
+    for(i in 1:length(nbdadata)){
+      newNbdaData<-c(newNbdaData,list(eval(as.name(nbdadata[i]))))
+    }
+    nbdadata<-newNbdaData
+  }
+
   if(cores>1){
     if(is.null(statusBar))statusBar<-F
     tadaAICtable_multiCore(nbdadata=nbdadata,constraintsVectMatrix=constraintsVectMatrix,cores=cores,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,baselineVect=baselineVect,
