@@ -95,11 +95,8 @@ for(i in 1:length(xVals)){
 
 		#Create the necessary constrained data objects
 		if(is.list(nbdadata)){
-#		  randomLabel<-as.character(round(runif(1,0,9999),0))
-#		  nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
 		  nbdadataTemp<-list()
 		  for(dataset in 1:length(nbdadata)){
-		    #assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
 		    nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
 		  }
 		}else{
@@ -236,10 +233,9 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
 
   #Create the necessary constrained data objects
   if(is.list(nbdadata)){
-    randomLabel<-as.character(round(runif(1,0,9999),0))
-    nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
+    nbdadataTemp<-list
     for(dataset in 1:length(nbdadata)){
-      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+      nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
     }
   }else{
      nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
@@ -359,10 +355,9 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
 
   #Create the necessary constrained data objects
   if(is.list(nbdadata)){
-    randomLabel<-as.character(round(runif(1,0,9999),0))
-    nbdadataTemp<-paste(paste("TempNBDAdata",randomLabel,sep=""),1:length(nbdadata),sep="")
+    nbdadataTemp<-list()
     for(dataset in 1:length(nbdadata)){
-      assign(nbdadataTemp[dataset],constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect),envir = .GlobalEnv)
+      nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
     }
   }else{
     nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
