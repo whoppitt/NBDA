@@ -14,17 +14,16 @@ nbdaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="soci
     if(is.null(par)|is.null(nbdadata)){
       return("Please provide a model or input parameter values with data")
     }
-    if(is.character(nbdadata)){
-      nbdaMultiDiff<-nbdadata;
-      nbdadata<-eval(as.name(nbdaMultiDiff[1]));
-    }else{
-      nbdaMultiDiff<-"NA";
-    }
+#    if(is.list(nbdadata)){
+#      nbdaMultiDiff<-nbdadata;
+#      nbdadata<-eval(as.name(nbdaMultiDiff[1]));
+#    }else{
+#      nbdaMultiDiff<-"NA";
+#    }
   }else{
       par<-model@outputPar;
       nbdadata<-model@nbdadata;
       type<-model@type
-      nbdaMultiDiff<-model@nbdaMultiDiff
 
       if(class(model)=="tadaFit"){
 
@@ -39,13 +38,6 @@ nbdaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="soci
 
   if(type=="asocial"){
   if(is.null(retainInt)){
-    if(is.character(nbdadata)){
-      retainInt<-FALSE
-      for (i in 1:length(nbdadata)){
-        nbdadataTemp2<-eval(as.name(nbdadata[i]));
-        if(sum(nbdadataTemp2@offsetCorrection[,1])>0) retainInt<-TRUE
-      }
-    }else{
       if(is.list(nbdadata)){
         retainInt<-FALSE
         for (i in 1:length(nbdadata)){
@@ -55,13 +47,12 @@ nbdaPropSolveByST.byevent<-function(par=NULL,nbdadata=NULL,model=NULL,type="soci
       }else{
         retainInt<-sum(nbdadata@offsetCorrection[,1])>0
       }
-    }
   }
   }
 
   if(is.list(nbdadata)){
     outputMatrix<-NULL
-    for(i in 1:length(nbdaMultiDiff)){
+    for(i in 1:length(nbdadata)){
       subdata <- nbdadata[[i]];
       outputMatrix<-rbind(outputMatrix,oadaPropSolveByST.byevent(par=par, nbdadata=subdata,type=type,retainInt=retainInt));
     }
