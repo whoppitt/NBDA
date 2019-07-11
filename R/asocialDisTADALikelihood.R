@@ -144,11 +144,15 @@ if(retainInt){
 	  cumHazDiff<-cumHazards1-cumHazards2
 	}
 	if(baseline=="gamma"){
+	  rate=1/hazFunctPars[1]
+	  shape=hazFunctPars[2]
 	  cumHazards1<--pgamma(nbdadata@TADAtime1,shape=shape,rate=rate, lower = FALSE, log = TRUE)
 	  cumHazards2<--pgamma(nbdadata@TADAtime2,shape=shape,rate=rate, lower = FALSE, log = TRUE)
 	  cumHazDiff<-cumHazards1-cumHazards2
 	}
 	if(baseline=="weibull"){
+	  scale=hazFunctPars[1]
+	  shape=hazFunctPars[2]
 	  cumHazards1<--pweibull(nbdadata@TADAtime1,shape=shape,scale=scale, lower = FALSE, log = TRUE)
 	  cumHazards2<--pweibull(nbdadata@TADAtime2,shape=shape,scale=scale, lower = FALSE, log = TRUE)
 	  cumHazDiff<-cumHazards1-cumHazards2
