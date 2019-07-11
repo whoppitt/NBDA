@@ -79,7 +79,7 @@ setMethod("initialize",
               if(is.null(demons)){
                 statusMatrix[,1] <- rep(0,dim(assMatrix)[1])
               } else {
-                for(i in 1:(1+nAcq)){
+                for(i in 1:endTime){
                   statusMatrix[,i] <- demons
                 }
               }
