@@ -11,7 +11,7 @@ if(is.list(nbdadata)){
 
     for(i in 1:length(nbdadata)){
       subdata <- nbdadata[[i]];
-      totalGradient <- totalGradient + gradient_SLdom(parVect= parVect, nbdadata=subdata,baseline=baseline,noHazFunctPars=noHazFunctPars,hazFunct=hazFunct,cumHaz=cumHaz);
+      totalGradient <- totalGradient + gradient_SLdom(parVect= parVect, nbdadata=subdata);
     }
 
     return(totalGradient);
