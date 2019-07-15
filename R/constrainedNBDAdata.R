@@ -66,6 +66,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   newNBDAdata@stMetric<-tempstMetric
 
   newAssMatrixDims<-dim(nbdadata@assMatrix)
+
   newAssMatrixDims[3]<-length(unique(sConstraintsVect[sConstraintsVect>0]))
   newNBDAdata@assMatrix<-array(NA,dim=newAssMatrixDims)
 
@@ -74,7 +75,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   if(sum(sConstraintsVect==unique(sConstraintsVect)[i])==1){
     newNBDAdata@assMatrix[,,i,]<-nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],]
   }else{
-    newNBDAdata@assMatrix[,,i,]<-apply(nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],],c(1,2,4),sum)
+    newNBDAdata@assMatrix[,,i,]<-apply(array(nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],],dim=dim(nbdadata@assMatrix)),c(1,2,4),sum)
   }
   }
 
