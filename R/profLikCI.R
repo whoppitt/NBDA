@@ -469,7 +469,10 @@ plotProfLikTrueTies<-function(which,model,range,constraintsVect=NULL,resolution=
 
 }
 
-distanceFromCutoffTrueTies<-function(value,which,model,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+distanceFromCutoffTrueTies<-function(value,which,model,inflation=1,conf=0.95,startValue=NULL,lowerIn=NULL,upperIn=NULL){
+
+  lower<-lowerIn
+  upper<-upperIn
 
   if(model@nbdaMultiDiff[1]=="NA"){
     nbdadata<-model@nbdadata
@@ -500,5 +503,10 @@ distanceFromCutoffTrueTies<-function(value,which,model,inflation=1,conf=0.95,sta
   cutoff<-model@loglik+inflation*qchisq(conf,1)/2
 
   return(abs(cutoff-oadaProfileLikelihood(which=which,value=value,nbdadata=nbdadata,startValue=startValue,lower=lower,upper=upper)))
+}
+
+profLikCITrueTies<-function(which,model,interval,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+  fit<-optimise(f=distanceFromCutoffTrueTies, interval=interval,which=which, model=model,inflation=inflation,conf=conf,startValue=startValue,lowerIn=lower,upperIn=upper)
+  fit$minimum
 }
 
