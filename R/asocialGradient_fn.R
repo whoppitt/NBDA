@@ -6,7 +6,7 @@ asocialGradient_fn <- function(parVect, nbdadata,retainInt=NULL){
 #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
 #This will be passed on by the model fitting function, but if the function is called independently we need to calculate this here
   if(is.null(retainInt)){
-    if(is.character(nbdadata)){
+    if(is.list(nbdadata)){
       retainInt<-FALSE
       for (i in 1:length(nbdadata)){
         nbdadataTemp2<-nbdadata[[i]];

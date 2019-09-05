@@ -139,7 +139,7 @@ for(i in 1:length(xVals)){
 	return(data.frame(xVals,profLik,converged))
 }
 
-distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=150,inflation=1,conf=0.95,retainInt=NULL){
+distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=150,inflation=1,conf=0.95,retainInt=NULL,direction=F){
 
   if(model@nbdaMultiDiff[1]=="NA"){
     nbdadata<-model@nbdadata
@@ -246,7 +246,11 @@ distanceFromCutoff<-function(value,which,model,constraintsVect=NULL,iterations=1
   if(class(model)=="tadaFit")    modelTemp<-tadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,baseline=model@baseline,noHazFunctPars=model@noHazFunctPars,hazFunct=model@hazFunct,cumHaz=model@cumHaz)
 
   profLik<-modelTemp@loglik
-	return(abs(cutoff-profLik))
+  if(direction){
+    return(cutoff-profLik)
+  }else{
+  	return(abs(cutoff-profLik))
+  }
 }
 
 profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=NULL,iterations=150,inflation=1,conf=0.95,retainInt=NULL){
@@ -365,7 +369,11 @@ profLikCI<-function(which,model,upperRange=NULL,lowerRange=NULL,constraintsVect=
 
   #Fit the model
   if(class(model)=="oadaFit"|class(model)=="oadaFit_coxme")    modelTemp<-oadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F)
-  if(class(model)=="tadaFit")    modelTemp<-tadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,baseline=model@baseline,noHazFunctPars=model@noHazFunctPars,hazFunct=model@hazFunct,cumHaz=model@cumHaz)
+  if(class(model)=="tadaFit"){
+    noHazFunctPars<-model@noHazFunctPars
+    modelTemp<-tadaFit(nbdadata= nbdadataTemp,type=fitType,iterations=iterations,standardErrors=F,baseline=model@baseline,noHazFunctPars=model@noHazFunctPars,hazFunct=model@hazFunct,cumHaz=model@cumHaz)
+  }
+
   profLik<-modelTemp@loglik
 
 

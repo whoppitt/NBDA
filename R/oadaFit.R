@@ -503,17 +503,17 @@ oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(
     nbdadata<-newNbdaData
   }
 
-  if(class(nbdadata)!="nbdaData"){
-    if(class(nbdadata)=="list"){
-      if(class(nbdadata[[1]])!="nbdaData"){
-        cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
-        return(NULL)
-      }
-    }else{
-      cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
-      return(NULL)
-    }
-  }
+#  if(class(nbdadata)!="nbdaData"){
+#    if(is.list(nbdadata)){
+#      if(class(nbdadata[[1]])!="nbdaData"){
+#        cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
+#        return(NULL)
+#      }
+#    }else{
+#      cat("OADA models can only be fitted to objects of class nbdaData.\nThe object provided is of class", class(nbdadata))
+#      return(NULL)
+#    }
+#  }
     if(type=="social"|type=="asocial"){
 
     #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)

@@ -277,6 +277,8 @@ setMethod("initialize",
 		  newType[apply(as.matrix(constraintsVectMatrix[,1:noSParam]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+1):(noSParam+noILVasoc)]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]),1,sum)==0]<-"additive"
 		  newType[apply(as.matrix(constraintsVectMatrix[,1:noSParam]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+1):(noSParam+noILVasoc)]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]),1,sum)>0]<-"unconstrained"
 		  newType[apply(as.matrix(constraintsVectMatrix[,1:noSParam]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+1):(noSParam+noILVasoc)]),1,sum)==0&apply(as.matrix(constraintsVectMatrix[,(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]),1,sum)==0]<-"noILVs"
+		  newType[apply(as.matrix(constraintsVectMatrix[,1:noSParam]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+1):(noSParam+noILVasoc)]),1,sum)==0&apply(as.matrix(constraintsVectMatrix[,(noSParam+noILVasoc+1):(noSParam+noILVasoc+noILVint)]),1,sum)>0]<-"socialEffectsOnly"
+
 		}
 		if(noILVasoc==0&noILVint==0&noILVmulti>0){
 		  newType[apply(as.matrix(constraintsVectMatrix[,1:noSParam]),1,sum)>0&apply(as.matrix(constraintsVectMatrix[,(noSParam+noILVasoc+noILVint+1):(noSParam+noILVasoc+noILVint+noILVmulti)]),1,sum)>0]<-"multiplicative"
@@ -801,7 +803,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
     tablesFromSet <- foreach(i=1:cores) %dopar%
     {
       #I think we need to reload the NBDA package into each thread
-      library(NBDA)
+     # library(NBDA)
       #Identify which models need to be fitted in this core x set combination
       modelSet<-((set-1)*modelsPerCorePerSet*cores + (i-1)*modelsPerCorePerSet+remainderModels)+1:modelsPerCorePerSet
       #Cut down constraintsVectMatrix and, if necessary typeVect and offsetVectMatrix
@@ -856,3 +858,259 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 
   return(cumulativeAICtable)
 }
+
+
+#This function allows one to get the lower limits of the C.I. for a chosen s parameter for all models in the set containing that s parameter
+#or within deltaThreshold AIC/AICc units. Works for OADA
+multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,startValue=NULL,lowerList=NULL,method="nlminb", gradient=T,iterations=150){
+  if(class(aicTable)=="oadaAICtable"){
+  #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
+  modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
+  modelSet<-aicTable@printTable$model[modelsIncluded]
+
+  lowerLimitRecord<-lowerLimitPropST<-rep(NA,length(modelSet))
+
+  nbdadata<-aicTable@nbdadata
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.list(nbdadata)){
+    nbdadataTemp1<-nbdadata[[1]]
+  }else{nbdadataTemp1<-nbdadata}
+
+  #Calculate the number of different s parameters, ILVs and models to be fitted
+  noSParam<-dim(nbdadataTemp1@stMetric)[2]
+  noILVasoc<- dim(nbdadataTemp1@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp1@intILVdata)[2] #ILV effects on interation (social learning)
+  noILVmulti<- dim(nbdadataTemp1@multiILVdata)[2] #ILV multiplicative model effects
+  if(nbdadataTemp1@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+  if(nbdadataTemp1@int_ilv[1]=="ILVabsent") noILVint<-0
+  if(nbdadataTemp1@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+  pb <- txtProgressBar(min=0, max=length(modelSet), style=3)
+
+  for(i in 1:length(modelSet)){
+    setTxtProgressBar(pb, i)
+
+    model<-modelSet[i]
+    constraintsVect<-aicTable@constraintsVectMatrix[model,]
+    offsetVect<-aicTable@offsetVectMatrix[model,]
+
+    if(is.null(startValue)) {
+      newStartValue<-NULL
+    }else{
+      newStartValue<-startValue[constraintsVect!=0]
+    }
+
+    if(is.null(lowerList)) {
+      lower<-NULL
+    }else{
+      lower<-lowerList[i,]
+      lower<-lower[constraintsVect!=0]
+    }
+    #Create the necessary constrained data objects
+    if(is.list(nbdadata)){
+      nbdadataTemp<-list()
+      for(dataset in 1:length(nbdadata)){
+        nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
+      }
+    }else{
+      nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
+    }
+
+    #Fit the model
+    modelFit<-NULL
+    try(modelFit<-oadaFit(nbdadata= nbdadataTemp,startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
+    if(distanceFromCutoff(value=0,which=constraintsVect[which],model=modelFit,conf=conf,direction=T)>0){
+      lowerLimitRecord[i]<-0
+    }else{
+      #Get the lower 95% CI
+      lowerLimitRecord[i]<-profLikCI(which=constraintsVect[which],model=modelFit,conf=conf,lowerRange=c(0,modelFit@outputPar[constraintsVect[which]]))[1]
+    }
+
+
+    #Fit lower limit model
+
+    #Create the necessary constrained data objects
+    newConstraintsVect<-constraintsVect
+    newConstraintsVect[constraintsVect[which]]<-0
+    newConstraintsVect[newConstraintsVect>0]<-as.numeric(factor(newConstraintsVect[newConstraintsVect>0]))
+    newOffsetVect<-offsetVect
+    newOffsetVect[constraintsVect[which]]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
+
+    type="social"
+    if(sum(newConstraintsVect[1:noSParam])==0){
+      type<-"asocial";
+      newConstraintsVect[1]<-1;
+      newConstraintsVect[-(1:noSParam)]<-(newConstraintsVect[-(1:noSParam)]+1)*(newConstraintsVect[-(1:noSParam)]>0);
+    }
+
+    if(is.list(nbdadata)){
+      nbdadataTemp<-list()
+      for(dataset in 1:length(nbdadata)){
+        nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=newConstraintsVect,offsetVect=newOffsetVect))
+      }
+    }else{
+      nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=newConstraintsVect,offsetVect=newOffsetVect)
+    }
+
+    lowerLimModel<-oadaFit(nbdadataTemp,type=type)
+    if(lowerLimModel@varNames[1]=="No variables"){
+      propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata)
+    }else{
+      propST<-oadaPropSolveByST(model=lowerLimModel)
+    }
+    lowerLimitPropST[i]<-propST[length(propST)]
+  }
+
+
+
+
+  lowerLimitRecordFull<-lowerLimitPropSTFull<-rep(NA,dim(aicTable@printTable)[1])
+  lowerLimitRecordFull[modelsIncluded]<-lowerLimitRecord
+  lowerLimitPropSTFull[modelsIncluded]<-lowerLimitPropST
+
+  output1<-data.frame(model=aicTable@printTable$model,netCombo=aicTable@printTable$netCombo,lowerCI=lowerLimitRecordFull,propST=lowerLimitPropSTFull,deltaAICc=aicTable@printTable$deltaAICc,
+                      akaikeWeight=aicTable@printTable$AkaikeWeight
+  )[!is.na(lowerLimitRecordFull),]
+
+  output<-cbind(output1,adjAkWeight=output1$akaikeWeight/sum(output1$akaikeWeight),
+                cumulAdjAkWeight=cumsum(output1$akaikeWeight/sum(output1$akaikeWeight)))
+
+  return(output)
+  }
+
+  if(class(aicTable)=="tadaAICtable"){
+    #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
+    modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
+    modelSet<-aicTable@printTable$model[modelsIncluded]
+
+    lowerLimitRecord<-lowerLimitPropST<-rep(NA,length(modelSet))
+
+    nbdadata<-aicTable@nbdadata
+
+    #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+    if(is.list(nbdadata)){
+      nbdadataTemp1<-nbdadata[[1]]
+    }else{nbdadataTemp1<-nbdadata}
+
+    #Calculate the number of different s parameters, ILVs and models to be fitted
+    noSParam<-dim(nbdadataTemp1@stMetric)[2]
+    noILVasoc<- dim(nbdadataTemp1@asocILVdata)[2] #ILV effects on asocial learning
+    noILVint<- dim(nbdadataTemp1@intILVdata)[2] #ILV effects on interation (social learning)
+    noILVmulti<- dim(nbdadataTemp1@multiILVdata)[2] #ILV multiplicative model effects
+    if(nbdadataTemp1@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+    if(nbdadataTemp1@int_ilv[1]=="ILVabsent") noILVint<-0
+    if(nbdadataTemp1@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+    pb <- txtProgressBar(min=0, max=length(modelSet), style=3)
+
+    for(i in 1:length(modelSet)){
+      setTxtProgressBar(pb, i)
+
+      model<-modelSet[i]
+      constraintsVect<-aicTable@constraintsVectMatrix[model,]
+      offsetVect<-aicTable@offsetVectMatrix[model,]
+      baseline<-aicTable@baselineVect[i]
+
+      if(is.null(startValue)) {
+        newStartValue<-NULL
+      }else{
+        newStartValue<-startValue[constraintsVect!=0]
+      }
+
+      if(is.null(lowerList)) {
+        lower<-NULL
+      }else{
+        lower<-lowerList[i,]
+        lower<-lower[constraintsVect!=0]
+      }
+      #Create the necessary constrained data objects
+      if(is.list(nbdadata)){
+        nbdadataTemp<-list()
+        for(dataset in 1:length(nbdadata)){
+          nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=constraintsVect,offsetVect=offsetVect))
+        }
+      }else{
+        nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
+      }
+
+      #Fit the model
+
+      if(baseline=="constant") noHazFunctPars<-1
+      if(baseline=="gamma") noHazFunctPars<-2
+      if(baseline=="weibull") noHazFunctPars<-2
+
+      modelFit<-NULL
+      try(modelFit<-tadaFit(nbdadata= nbdadataTemp,baseline=baseline,startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
+      if(distanceFromCutoff(value=0,which=constraintsVect[which],model=modelFit,conf=conf,direction=T)>0){
+        lowerLimitRecord[i]<-0
+      }else{
+        #Get the lower 95% CI
+        lowerLimitRecord[i]<-profLikCI(which=constraintsVect[which],model=modelFit,conf=conf,lowerRange=c(0,modelFit@outputPar[constraintsVect[which]+noHazFunctPars]))[1]
+      }
+      #Fit lower limit model
+
+      #Create the necessary constrained data objects
+      newConstraintsVect<-constraintsVect
+      newConstraintsVect[constraintsVect[which]]<-0
+      newConstraintsVect[newConstraintsVect>0]<-as.numeric(factor(newConstraintsVect[newConstraintsVect>0]))
+      newOffsetVect<-offsetVect
+      newOffsetVect[constraintsVect[which]]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
+
+      type="social"
+      if(sum(newConstraintsVect[1:noSParam])==0){
+        type<-"asocial";
+        newConstraintsVect[1]<-1;
+        newConstraintsVect[-(1:noSParam)]<-(newConstraintsVect[-(1:noSParam)]+1)*(newConstraintsVect[-(1:noSParam)]>0);
+      }
+
+      if(is.list(nbdadata)){
+        nbdadataTemp<-list()
+        for(dataset in 1:length(nbdadata)){
+          nbdadataTemp<-c(nbdadataTemp,constrainedNBDAdata(nbdadata=nbdadata[[dataset]],constraintsVect=newConstraintsVect,offsetVect=newOffsetVect))
+        }
+      }else{
+        nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=newConstraintsVect,offsetVect=newOffsetVect)
+      }
+
+      lowerLimModel<-tadaFit(nbdadataTemp,type=type,baseline=baseline)
+      if(lowerLimModel@varNames[1]=="No variables"){
+        propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata)
+      }else{
+        propST<-oadaPropSolveByST(model=lowerLimModel)
+      }
+      lowerLimitPropST[i]<-propST[length(propST)]
+    }
+
+    lowerLimitRecordFull<-lowerLimitPropSTFull<-rep(NA,dim(aicTable@printTable)[1])
+    lowerLimitRecordFull[modelsIncluded]<-lowerLimitRecord
+    lowerLimitPropSTFull[modelsIncluded]<-lowerLimitPropST
+
+    output1<-data.frame(model=aicTable@printTable$model,netCombo=aicTable@printTable$netCombo,lowerCI=lowerLimitRecordFull,propST=lowerLimitPropSTFull,deltaAICc=aicTable@printTable$deltaAICc,
+                        akaikeWeight=aicTable@printTable$AkaikeWeight
+    )[!is.na(lowerLimitRecordFull),]
+
+    output<-cbind(output1,adjAkWeight=output1$akaikeWeight/sum(output1$akaikeWeight),
+                  cumulAdjAkWeight=cumsum(output1$akaikeWeight/sum(output1$akaikeWeight)))
+
+    return(output)
+  }
+
+
+}
+
+
+#This function takes the output of multiModelLowerLimits and returns the minimunm lowerCI and propST within a specified confidence set of models
+confSetLowerLimit<-function(multiModelLowerLimitsSet,confSet=.95){
+  if(confSet>=1){
+    newSet<-multiModelLowerLimitsSet
+  }else{
+    newLimit<-min(multiModelLowerLimitsSet$cumulAdjAkWeight[multiModelLowerLimitsSet$cumulAdjAkWeight>=confSet])
+    newSet<-multiModelLowerLimitsSet[multiModelLowerLimitsSet$cumulAdjAkWeight<newLimit,]
+  }
+  lowerCI<-min(newSet$lowerCI)
+  propST<-min(newSet$propST)
+  list(lowerCI=lowerCI,propST=propST)
+}
+
+

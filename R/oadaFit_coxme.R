@@ -130,8 +130,8 @@ setMethod("initialize",
 
             #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
             if(is.list(nbdadata)){
-              nbdadataTemp<-nbdadata[[1]]
-            }else{nbdadataTemp<-nbdadata}
+              nbdadatatemp<-nbdadata[[1]]
+            }else{nbdadatatemp<-nbdadata}
 
             #calculate the number of each type of parameter
             noSParam <- dim(nbdadatatemp@stMetric)[2] #s parameters
@@ -341,7 +341,7 @@ Inf
 
                 #To prevent a low AICc when there are more parameters than data!
                 if(is.nan(aic)|is.nan(aicc)){}else{
-  Inf
+                aicc<-Inf
                 }
 
 
