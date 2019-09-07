@@ -957,7 +957,7 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,excl
     if(lowerLimModel@varNames[1]=="No variables"){
       propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata,exclude.innovations=exclude.innovations,innovations=innovations)
     }else{
-      propST<-oadaPropSolveByST(model=lowerLimModel)
+      propST<-oadaPropSolveByST(model=lowerLimModel,exclude.innovations=exclude.innovations,innovations=innovations)
     }
     lowerLimitPropST[i]<-propST[length(propST)]
   }
@@ -1075,7 +1075,7 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,excl
 
       lowerLimModel<-tadaFit(nbdadataTemp,type=type,baseline=baseline)
       if(lowerLimModel@varNames[1]=="No variables"){
-        propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata)
+        propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata,exclude.innovations=exclude.innovations,innovations=innovations)
       }else{
         propST<-oadaPropSolveByST(model=lowerLimModel,exclude.innovations=exclude.innovations,innovations=innovations)
       }
