@@ -862,7 +862,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 
 #This function allows one to get the lower limits of the C.I. for a chosen s parameter for all models in the set containing that s parameter
 #or within deltaThreshold AIC/AICc units. Works for OADA
-multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,startValue=NULL,lowerList=NULL,method="nlminb", gradient=T,iterations=150){
+multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,method="nlminb", gradient=T,iterations=150){
   if(class(aicTable)=="oadaAICtable"){
   #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
   modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
@@ -955,7 +955,7 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,star
 
     lowerLimModel<-oadaFit(nbdadataTemp,type=type)
     if(lowerLimModel@varNames[1]=="No variables"){
-      propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata)
+      propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata,exclude.innovations=exclude.innovations,innovations=innovations)
     }else{
       propST<-oadaPropSolveByST(model=lowerLimModel)
     }
@@ -1077,7 +1077,7 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,star
       if(lowerLimModel@varNames[1]=="No variables"){
         propST<-oadaPropSolveByST(par=0,nbdadata=lowerLimModel@nbdadata)
       }else{
-        propST<-oadaPropSolveByST(model=lowerLimModel)
+        propST<-oadaPropSolveByST(model=lowerLimModel,exclude.innovations=exclude.innovations,innovations=innovations)
       }
       lowerLimitPropST[i]<-propST[length(propST)]
     }
