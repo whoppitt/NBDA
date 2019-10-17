@@ -84,7 +84,8 @@ setMethod("initialize",
 
 
 		#Set up various vectors to record things about each model
-		convergence<-loglik<-aic<-aicc<-seApprox<-rep(NA,noModels)
+		convergence<-rep(NA,noModels)
+		loglik<-aic<-aicc<-seApprox<-rep(NaN,noModels)
 
 		#Loop through the rows of the constrainstsVectMatrix creating the constrained objects and thus fitting the specified model each time
 		for (i in 1:noModels){
@@ -862,7 +863,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 
 #This function allows one to get the lower limits of the C.I. for a chosen s parameter for all models in the set containing that s parameter
 #or within deltaThreshold AIC/AICc units. Works for OADA
-multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,method="nlminb", gradient=T,iterations=150){
+multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,method="nlminb", gradient=T,iterations=150){
   if(class(aicTable)=="oadaAICtable"){
   #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
   modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
@@ -924,15 +925,19 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,excl
       lowerLimitRecord[i]<-0
     }else{
       #Get the lower 95% CI
-      lowerLimitRecord[i]<-profLikCI(which=constraintsVect[which],model=modelFit,conf=conf,lowerRange=c(0,modelFit@outputPar[constraintsVect[which]]))[1]
-    }
+      if(is.null(searchRange)){
+        lowerLimitRecord[i]<-profLikCI(which=constraintsVect[which],model=modelFit,conf=conf,lowerRange=c(0,modelFit@outputPar[constraintsVect[which]]))[1]
+      }else{
+        lowerLimitRecord[i]<-profLikCI(which=constraintsVect[which],model=modelFit,conf=conf,lowerRange=searchRange)[1]
+      }
+      }
 
 
     #Fit lower limit model
 
     #Create the necessary constrained data objects
     newConstraintsVect<-constraintsVect
-    newConstraintsVect[constraintsVect[which]]<-0
+    newConstraintsVect[constraintsVect==which]<-0
     newConstraintsVect[newConstraintsVect>0]<-as.numeric(factor(newConstraintsVect[newConstraintsVect>0]))
     newOffsetVect<-offsetVect
     newOffsetVect[constraintsVect[which]]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
