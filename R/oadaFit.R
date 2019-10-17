@@ -7,7 +7,7 @@
 setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="list",optimisation="list",optim="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",SLdom="logical"));
 
 
-#Method for initializing addFit object- including model fitting
+#Method for initializing oadaFit object- including model fitting
 setMethod("initialize",
           signature(.Object = "oadaFit"),
           function (.Object, nbdadata,type,startValue,lower,method,interval,gradient,iterations,standardErrors,SLdom,...)

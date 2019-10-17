@@ -1,5 +1,5 @@
 
-#We need a fucntion to return the relevant coxme model for a given input:
+#We need a function to return the relevant coxme model for a given input:
 return_coxme<-function(parVect, nbdadata,formula=NULL){
 
   if(is.character(nbdadata)){
@@ -17,11 +17,11 @@ return_coxme<-function(parVect, nbdadata,formula=NULL){
     noSParam<-dim(nbdadatatemp@stMetric)[2] #number of s parameters
     #Append 0s to parVect for the s parameters
     parVect<-c(rep(0,noSParam),parVect)
-    coxmeData<-createCoxmeData(parVect,subdata,retainInt=retainInt)
+    coxmeData<-createCoxmeData(parVect,subdata)
     if (length(nbdadata)>1){
       for(i in 2:length(nbdadata)){
         subdata <- nbdadata[[i]];
-        coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata,retainInt=retainInt))
+        coxmeData<-rbind(coxmeData,createCoxmeData(parVect,subdata))
       }
     }
   }else{
@@ -115,11 +115,11 @@ return(model)
 
 
 
-#Define class of object for the fitted additive model
-setClass("oadaFit_coxme",representation(nbdaMultiDiff="character",nbdadata="nbdaData",optimisation="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",REvar="list",fixedFormula="formula",randomFormula="list"));
+#Define class of object for the fitted oada coxme model
+setClass("oadaFit_coxme",representation(nbdaMultiDiff="character",nbdadata="list",optimisation="list",loglik="numeric",aic="numeric",aicc="numeric",varNames="character",hessian="matrix",outputPar="numeric",se="numeric",type="character",REvar="list",fixedFormula="formula",randomFormula="list"));
 
 
-#Method for initializing addFit object- including model fitting
+#Method for initializing oadaFit_coxme object- including model fitting
 setMethod("initialize",
           signature(.Object = "oadaFit_coxme"),
           function (.Object, nbdadata,type,startValue,lower,method,interval,gradient,iterations,standardErrors,formula,...)
@@ -316,9 +316,8 @@ Inf
               upper<-rep(Inf,length(startValue));
               if(is.null(interval)) interval<-c(0,999);
 
-              #Optimise for s
               #All being done without gradient at the moment, cannot get gradient to work
-                 fit1<-nlminb(start=startValue, objective= oadalikelihood_coxme,lower=lower, upper=upper,nbdadata=nbdadata,control=list(iter.max=iterations));
+               fit1<-nlminb(start=startValue, objective= oadalikelihood_coxme,lower=lower, upper=upper,nbdadata=nbdadata,control=list(iter.max=iterations));
 
 
                 #Record MLEs
@@ -362,6 +361,7 @@ Inf
                     se <- c(rep(NA,length(fit1$par)),(sqrt(diag(vcov.mat))))
                     names(se) <- varNames
                     #For now just filling in the multi ones from the coxme model- figure out later if I can get the others
+                    #I am not sure these are generally right so am leaving SEs out of this model
                   }
                   hessianMat<-matrix(NA)
                 }else{hessianMat<-NULL}
@@ -370,12 +370,10 @@ Inf
                   se<-rep(NaN,length(outputPar))
                   hessianMat<-matrix(NA)
                 }
-
-
-                if(is.character(nbdadata)){
-                  callNextMethod(.Object, nbdaMultiDiff=nbdadata, nbdadata = nbdadatatemp, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,REvar=model$vcoef,fixedFormula=model$formulaList$fixed,randomFormula=model$formulaList$random,...)
-                }else{
+                if(is.list(nbdadata)){
                   callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata, optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,REvar=model$vcoef,fixedFormula=model$formulaList$fixed,randomFormula=model$formulaList$random,...)
+                }else{
+                  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), optimisation=fit1,loglik=loglik, aic=aic,aicc=aicc,varNames=varNames, outputPar= outputPar, hessian = hessianMat ,se=se, type=type,REvar=model$vcoef,fixedFormula=model$formulaList$fixed,randomFormula=model$formulaList$random,...)
 
                 }
             }
