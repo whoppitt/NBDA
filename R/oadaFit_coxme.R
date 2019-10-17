@@ -192,7 +192,7 @@ setMethod("initialize",
 
               #To prevent a low AICc when there are more parameters than data!
               if(is.nan(aic)|is.nan(aicc)){}else{
-Inf
+                if(aicc<aic) aicc<-Inf;
               }
 
               #Extract names of variables
@@ -255,7 +255,7 @@ Inf
 
                 #To prevent a low AICc when there are more parameters than data!
                 if(is.nan(aic)|is.nan(aicc)){}else{
-  Inf
+                  if(aicc<aic) aicc<-Inf;
                 }
 
 
@@ -319,7 +319,6 @@ Inf
               #All being done without gradient at the moment, cannot get gradient to work
                fit1<-nlminb(start=startValue, objective= oadalikelihood_coxme,lower=lower, upper=upper,nbdadata=nbdadata,control=list(iter.max=iterations));
 
-
                 #Record MLEs
                 outputPar<-fit1$par;
 
@@ -340,7 +339,7 @@ Inf
 
                 #To prevent a low AICc when there are more parameters than data!
                 if(is.nan(aic)|is.nan(aicc)){}else{
-                aicc<-Inf
+                  if(aicc<aic) aicc<-Inf;
                 }
 
 
