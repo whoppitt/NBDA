@@ -163,7 +163,7 @@ setMethod("initialize",
 
               #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
 
-              if(is.null(retainInt)){
+
                 if(is.character(nbdadata)){
                   retainInt<-FALSE
                   for (i in 1:length(nbdadata)){
@@ -181,7 +181,7 @@ setMethod("initialize",
                     retainInt<-sum(nbdadata@offsetCorrection[,1])>0
                   }
                 }
-              }
+
 
 
               if(retainInt){
