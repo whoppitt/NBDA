@@ -334,7 +334,7 @@ setMethod("initialize",
 
 
 #Function for implementing the initialization
-oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, cores=1, modelsPerCorePerSet=NULL,writeProgressFile=F,statusBar=NULL,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,combineTables=F,
+oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, cores=1, modelsPerCorePerSet=NULL,writeProgressFile=F,saveTableList=F,statusBar=NULL,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,combineTables=F,
                         MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL,
                         convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
 
@@ -351,7 +351,7 @@ oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVe
     if(is.null(statusBar))statusBar<-F
     oadaAICtable_multiCore(nbdadata=nbdadata,constraintsVectMatrix=constraintsVectMatrix,cores=cores,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,
                            modelsPerCorePerSet=modelsPerCorePerSet,writeProgressFile=writeProgressFile,statusBar=statusBar, startValue=startValue,method=method, gradient=gradient,iterations=iterations,
-                           aicUse=aicUse,lowerList=lowerList)
+                           aicUse=aicUse,lowerList=lowerList,saveTableList=saveTableList)
 
   }else{
     if(is.null(statusBar))statusBar<-T
