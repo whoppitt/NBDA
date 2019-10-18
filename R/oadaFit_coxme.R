@@ -49,17 +49,27 @@ return_coxme<-function(parVect, nbdadata,formula=NULL){
 
 return_asocial_coxme<-function(parVect, nbdadata, retainInt=TRUE,formula=NULL){
 
-if(is.null(retainInt)){
-  if(is.character(nbdadata)){
-    retainInt<-FALSE
-    for (i in 1:length(nbdadata)){
-      nbdadatatemp2<-eval(as.name(nbdadata[i]));
-      if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+
+  if(is.null(retainInt)){
+    if(is.character(nbdadata)){
+      retainInt<-FALSE
+      for (i in 1:length(nbdadata)){
+        nbdadatatemp2<-eval(as.name(nbdadata[i]));
+        if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+      }
+    }else{
+      if(is.list(nbdadata)){
+        retainInt<-FALSE
+        for (i in 1:length(nbdadata)){
+          nbdadatatemp2<-nbdadata[[i]];
+          if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+        }
+      }else{
+        retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+      }
     }
-  }else{
-    retainInt<-sum(nbdadata@offsetCorrection[,1])>0
   }
-}
+
 
 if(is.character(nbdadata)){
   subdata <- nbdadatatemp<-eval(as.name(nbdadata[1]));
@@ -152,15 +162,27 @@ setMethod("initialize",
             if(type=="asocial"){
 
               #We need to know whether to remove the interaction variables. This depends on whether an offset is included for any of the s parameters in any of the diffusions.
-              if(is.character(nbdadata)){
-                retainInt<-FALSE
-                for (i in 1:length(nbdadata)){
-                  nbdadatatemp2<-eval(as.name(nbdadata[i]));
-                  if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+
+              if(is.null(retainInt)){
+                if(is.character(nbdadata)){
+                  retainInt<-FALSE
+                  for (i in 1:length(nbdadata)){
+                    nbdadatatemp2<-eval(as.name(nbdadata[i]));
+                    if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+                  }
+                }else{
+                  if(is.list(nbdadata)){
+                    retainInt<-FALSE
+                    for (i in 1:length(nbdadata)){
+                      nbdadatatemp2<-nbdadata[[i]];
+                      if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+                    }
+                  }else{
+                    retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+                  }
                 }
-              }else{
-                retainInt<-sum(nbdadata@offsetCorrection[,1])>0
               }
+
 
               if(retainInt){
                 if(nbdadatatemp@int_ilv[1]=="ILVabsent") noILVint<-0
@@ -217,7 +239,8 @@ setMethod("initialize",
 
               }
 
-              }else{
+              }else
+                {
 
                 #Record asocialVar names
                 if(nbdadatatemp@asoc_ilv[1]=="ILVabsent"){asocialVarNames<-NULL}else{asocialVarNames<-nbdadatatemp@asoc_ilv};

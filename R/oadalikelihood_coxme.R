@@ -122,7 +122,15 @@ asocialLikelihood_coxme<-function(parVect, nbdadata, retainInt=NULL, formula=NUL
         if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
       }
     }else{
-      retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+      if(is.list(nbdadata)){
+        retainInt<-FALSE
+        for (i in 1:length(nbdadata)){
+          nbdadatatemp2<-nbdadata[[i]];
+          if(sum(nbdadatatemp2@offsetCorrection[,1])>0) retainInt<-TRUE
+        }
+      }else{
+        retainInt<-sum(nbdadata@offsetCorrection[,1])>0
+      }
     }
   }
 
