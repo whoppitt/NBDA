@@ -5,7 +5,7 @@
 
 #Define class of object for the fitted additive model
 setClass("oadaAICtable",representation(nbdaMultiDiff
-="character",nbdadata="list",convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix",
+="character",nbdadata="list",models='list',convergence="logical",loglik="numeric",aic="numeric",aicc="numeric",constraintsVectMatrix="matrix", offsetVectMatrix="matrix",
 MLEs="matrix",SEs="matrix",MLEilv="matrix",SEilv="matrix",MLEint="matrix",SEint="matrix",
 typeVect="character",deltaAIC="numeric",RelSupport="numeric",AkaikeWeight="numeric",printTable="data.frame"));
 
@@ -15,7 +15,7 @@ setMethod("initialize",
     signature(.Object = "oadaAICtable"),
     function (.Object, nbdadata,typeVect,constraintsVectMatrix,offsetVectMatrix,startValue,method,gradient,iterations,aicUse,lowerList,writeProgressFile,combineTables=F,
               MLEs,SEs,MLEilv,SEilv,MLEint,SEint,
-              convergence,loglik,aic,aicc,netComboModifierVect,statusBar,...)
+              convergence,loglik,aic,aicc,netComboModifierVect,statusBar,saveModels,models,...)
     {
 
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
@@ -133,6 +133,7 @@ setMethod("initialize",
 			#Fit the model
 		  model<-NULL
 			try(model<-oadaFit(nbdadata= nbdadataTemp,type=typeVect[i],startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
+		  if(saveModels) models<-c(models,list(model))
       if(!is.null(model)){
 
 			#If it is an asocial model, set constraints to 0 for all s parameters and adjust those for ILVs so they start at 1
@@ -305,6 +306,7 @@ setMethod("initialize",
 		#most likey weighted versus non-weighted
 		netCombo<-paste(netComboModifierVect,netCombo,sep="")
 
+		if(is.null(models)) models<-list(NA)
 
 		if(aicUse=="aic"){
 		  printTable<-data.frame(model=1:noModels,type=newType,netCombo=netCombo,baseline=NA,constraintsVectMatrix, offsetVectMatrix,convergence,loglik,MLEs,MLEilv,MLEint,
@@ -318,11 +320,11 @@ setMethod("initialize",
 
 
 		if(is.list(nbdadata)){
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = nbdadata,models=models,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
 		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
 		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 		}else{
-		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
+		  callNextMethod(.Object, nbdaMultiDiff="NA", nbdadata = list(nbdadata), models=models,convergence= convergence, loglik= loglik,aic= aic,aicc= aicc,constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix= offsetVectMatrix,
 		                 MLEs= MLEs,SEs= SEs,MLEilv= MLEilv,SEilv= SEilv,MLEint= MLEint,SEint= SEint,
 		                 typeVect= newType,deltaAIC= deltaAIC,RelSupport= RelSupport,AkaikeWeight= AkaikeWeight,printTable=printTable)
 
@@ -336,7 +338,7 @@ setMethod("initialize",
 #Function for implementing the initialization
 oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, cores=1, modelsPerCorePerSet=NULL,writeProgressFile=F,saveTableList=F,statusBar=NULL,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,combineTables=F,
                         MLEs=NULL,SEs=NULL,MLEilv=NULL,SEilv=NULL,MLEint=NULL,SEint=NULL,
-                        convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect=""){
+                        convergence=NULL,loglik=NULL,aic=NULL,aicc=NULL,netComboModifierVect="",saveModels=F,models=NULL){
 
   #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
   if(is.character(nbdadata)){
@@ -351,14 +353,14 @@ oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVe
     if(is.null(statusBar))statusBar<-F
     oadaAICtable_multiCore(nbdadata=nbdadata,constraintsVectMatrix=constraintsVectMatrix,cores=cores,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,
                            modelsPerCorePerSet=modelsPerCorePerSet,writeProgressFile=writeProgressFile,statusBar=statusBar, startValue=startValue,method=method, gradient=gradient,iterations=iterations,
-                           aicUse=aicUse,lowerList=lowerList,saveTableList=saveTableList)
+                           aicUse=aicUse,lowerList=lowerList,saveTableList=saveTableList,saveModels=saveModels)
 
   }else{
     if(is.null(statusBar))statusBar<-T
     return(new("oadaAICtable",nbdadata= nbdadata, typeVect= typeVect, constraintsVectMatrix= constraintsVectMatrix, offsetVectMatrix = offsetVectMatrix, startValue= startValue,method= method, gradient= gradient,
 	           iterations= iterations,aicUse= aicUse,lowerList=lowerList,writeProgressFile=writeProgressFile,combineTables=combineTables,statusBar=statusBar,
 	           MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,
-	           convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect))
+	           convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect,saveModels=saveModels,models=models))
   }
 }
 
@@ -666,6 +668,7 @@ combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=r
   constraintsVectMatrix<-oadaAICtableTemp@constraintsVectMatrix;
   offsetVectMatrix<-oadaAICtableTemp@offsetVectMatrix;
   netComboModifierVect<-rep(netComboModifier[i],dim(oadaAICtableTemp@constraintsVectMatrix)[1])
+  models<-oadaAICtableTemp@models
 
   #Loop through the oadaAICtableList and create combined versions of typeVect, constraintsVectMatrix, and offsetVectMatrix
   for(i in 2:length(oadaAICtableList)){
@@ -675,7 +678,7 @@ combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=r
     constraintsVectMatrix<-rbind(constraintsVectMatrix,oadaAICtableTemp@constraintsVectMatrix)
     offsetVectMatrix<-rbind(offsetVectMatrix,oadaAICtableTemp@offsetVectMatrix)
     netComboModifierVect<-c(netComboModifierVect,rep(netComboModifier[i],dim(oadaAICtableTemp@constraintsVectMatrix)[1]))
-
+    models<-c(models,oadaAICtableTemp@models)
   }
 
   typeVect[typeVect!="asocial"]<-"social"
@@ -741,7 +744,7 @@ combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=r
 
   tableTemp<-oadaAICtable(nbdadata=nbdadata,  constraintsVectMatrix=constraintsVectMatrix,typeVect=typeVect, offsetVectMatrix = offsetVectMatrix,
                startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,
-               combineTables=T,
+               combineTables=T, models=models,
                MLEs=MLEs,SEs=SEs,MLEilv=MLEilv,SEilv=SEilv,MLEint=MLEint,SEint=SEint,
                convergence=convergence,loglik=loglik,aic=aic,aicc=aicc,netComboModifierVect=netComboModifierVect)
 
@@ -751,7 +754,7 @@ combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=r
 
 #This function runs an oadaAICtable with multiple cores, but is called via oadaAICtable with the cores argument
 #so does not need calling by the user
-oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=NULL, offsetVectMatrix = NULL, modelsPerCorePerSet=NULL,writeProgressFile=F,statusBar=F,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,saveTableList=F){
+oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=NULL, offsetVectMatrix = NULL, modelsPerCorePerSet=NULL,writeProgressFile=F,statusBar=F,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,saveTableList=F,saveModels=F){
   noModels<-dim(constraintsVectMatrix)[1];
   #If cores is more than the number of models, reduce so one model is fit per cors
   if(cores>noModels) cores<-noModels
@@ -789,7 +792,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
     if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[1:remainderModels,]}
 
   cumulativeAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
-                                   startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,statusBar = F)
+                                   startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,statusBar = F,saveModels=saveModels)
   aicTableList<-list(cumulativeAICtable)
   }else{cumulativeAICtable<-aicTableList<-NULL}
 
@@ -815,7 +818,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
       if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[modelSet,]}
       #Fit the set of models required by this core x set
       tempAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
-                                       startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F)
+                                       startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,saveModels=saveModels)
       #Return the table, which is combined into a list with the tables from the other cores
       tempAICtable
     }
@@ -848,7 +851,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
       if(is.null(offsetVectMatrix)){offsetVectMatrixTemp<-NULL}else{offsetVectMatrixTemp<-offsetVectMatrix[modelSet,]}
       #Fit the set of models required by this core x set
       tempAICtable<-oadaAICtable(nbdadata,constraintsVectMatrixTemp,typeVect=typeVectTemp,offsetVectMatrix=offsetVectMatrixTemp,
-                                 startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F)
+                                 startValue=startValue,method=method, gradient=gradient,iterations=iterations,aicUse=aicUse,lowerList=lowerList,writeProgressFile=F,saveModels=saveModels)
       #Return the table, which is combined into a list with the tables from the other cores
       tempAICtable
     }
