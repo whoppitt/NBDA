@@ -18,6 +18,10 @@ setMethod("initialize",
               convergence,loglik,aic,aicc,netComboModifierVect,statusBar,saveModels,models,...)
     {
 
+    #Save any provided list of models
+    modelsIn<-models
+
+
     if(is.null(typeVect)){typeVect<-rep("social",dim(constraintsVectMatrix)[1])}
 
       #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
@@ -56,6 +60,8 @@ setMethod("initialize",
 
 		#Unless we are combining AICtables already fitted, loop through the constrainstVectMatrix and fit all the models
 		if(!combineTables){
+
+		models<-NULL
 
 		#set up progress bar
 		if(statusBar) pb <- txtProgressBar(min=0, max=noModels, style=3)
@@ -130,10 +136,16 @@ setMethod("initialize",
 		    nbdadataTemp<-constrainedNBDAdata(nbdadata=nbdadata,constraintsVect=constraintsVect,offsetVect=offsetVect)
 		  }
 
-			#Fit the model
-		  model<-NULL
-			try(model<-oadaFit(nbdadata= nbdadataTemp,type=typeVect[i],startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
-		  if(saveModels) models<-c(models,list(model))
+		  #See if a list of fitted models has been provided and, if so, take the appropriate one
+		  if(!is.null(modelsIn)){
+		    model<-modelsIn[[i]]
+		  }else{
+  			#Fit the model
+  		  model<-NULL
+  			try(model<-oadaFit(nbdadata= nbdadataTemp,type=typeVect[i],startValue=newStartValue,method=method,gradient=gradient,iterations=iterations))
+		  }
+
+  		if(saveModels) models<-c(models,list(model))
       if(!is.null(model)){
 
 			#If it is an asocial model, set constraints to 0 for all s parameters and adjust those for ILVs so they start at 1
