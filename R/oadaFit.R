@@ -10,7 +10,7 @@ setClass("oadaFit",representation(nbdaMultiDiff="character",nbdadata="list",opti
 #Method for initializing oadaFit object- including model fitting
 setMethod("initialize",
           signature(.Object = "oadaFit"),
-          function (.Object, nbdadata,type,startValue,lower,method,interval,gradient,iterations,standardErrors,SLdom,...)
+          function (.Object, nbdadata,type,startValue,lower,upper,method,interval,gradient,iterations,standardErrors,SLdom,...)
           {
 
             #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
@@ -229,7 +229,10 @@ setMethod("initialize",
               lower<-rep(-Inf,length(startValue));
               lower[1:noSParam]<-0;
               }
-              upper<-rep(Inf,length(startValue));
+              if(is.null(lower)){
+                upper<-rep(Inf,length(startValue));
+              }
+
               if(is.null(interval)) interval<-c(0,999);
 
               #Optimise for s
@@ -492,7 +495,7 @@ setMethod("initialize",
             )
 
 #Function for implementing the initialization and choosing between normal and oada.coxme version
-oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
+oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,upper=NULL,interval=c(0,999), method="nlminb", gradient=T,iterations=150, standardErrors="Numeric",formula=NULL,coxmeFit=NULL,SLdom=F){
 
     #If a multiple diffusion is specified as a character vector, convert to a list (for backwards compatibility)
   if(is.character(nbdadata)){
@@ -558,10 +561,10 @@ oadaFit<-function(nbdadata,type="social",startValue=NULL, lower=NULL,interval=c(
         print("Error: SLdom model cannot be fitted using coxme");
         return (NULL)
       }else{
-        return(new("oadaFit_coxme",nbdadata= nbdadata,type= type, startValue= startValue,lower=lower,interval= interval,method= method,gradient=gradient,iterations=iterations, standardErrors=standardErrors,formula=formula))
+        return(new("oadaFit_coxme",nbdadata= nbdadata,type= type, startValue= startValue,lower=lower,upper=upper,interval= interval,method= method,gradient=gradient,iterations=iterations, standardErrors=standardErrors,formula=formula))
       }
     }else{
-      return(new("oadaFit",nbdadata= nbdadata,type= type, startValue= startValue,lower=lower,interval= interval,method= method,gradient=gradient,iterations=iterations, standardErrors=standardErrors,SLdom=SLdom))
+      return(new("oadaFit",nbdadata= nbdadata,type= type, startValue= startValue,lower=lower,upper=upper,interval= interval,method= method,gradient=gradient,iterations=iterations, standardErrors=standardErrors,SLdom=SLdom))
     }
   }else{
     print("Error: Invalid type of model")

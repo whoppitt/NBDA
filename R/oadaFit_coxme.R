@@ -132,7 +132,7 @@ setClass("oadaFit_coxme",representation(nbdaMultiDiff="character",nbdadata="list
 #Method for initializing oadaFit_coxme object- including model fitting
 setMethod("initialize",
           signature(.Object = "oadaFit_coxme"),
-          function (.Object, nbdadata,type,startValue,lower,method,interval,gradient,iterations,standardErrors,formula,...)
+          function (.Object, nbdadata,type,startValue,lower,upper,method,interval,gradient,iterations,standardErrors,formula,...)
           {
 
             #FOR NOW FIX standardErrors=F until I have them figured out for sure
@@ -336,7 +336,9 @@ setMethod("initialize",
                 lower<-rep(-Inf,length(startValue));
                 lower[1:noSParam]<-0;
               }
-              upper<-rep(Inf,length(startValue));
+              if(is.null(upper)){
+                upper<-rep(Inf,length(startValue))
+              }
               if(is.null(interval)) interval<-c(0,999);
 
               #All being done without gradient at the moment, cannot get gradient to work
