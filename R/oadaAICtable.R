@@ -898,11 +898,22 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 
 #This function allows one to get the lower limits of the C.I. for a chosen s parameter for all models in the set containing that s parameter
 #or within deltaThreshold AIC/AICc units. Works for OADA
-multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,upperList=NULL,method="nlminb", gradient=T,iterations=150){
+multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,upperList=NULL,
+                                method="nlminb", gradient=T,iterations=150){
+
+  #Cut down to the models specificied in modelIndex (this is mostly included to allow multicore implementation)
+  if(is.null(modelIndex)) modelIndex<-1:dim(aicTable@printTable)[1]
+
+
+
   if(class(aicTable)=="oadaAICtable"){
+
   #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
   modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
   modelSet<-aicTable@printTable$model[modelsIncluded]
+  modelSet<-modelSet[modelSet%in%modelIndex]
+
+  if(length(modelSet)==0) return(NULL)
 
   lowerLimitRecord<-lowerLimitPropST<-rep(NA,length(modelSet))
 
@@ -1029,6 +1040,10 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,sear
     #get the model set in which AIC or AICc was < the threshold and in which the parameter was present
     modelsIncluded<-aicTable@printTable$deltaAIC<deltaThreshold&aicTable@printTable[,which+4]
     modelSet<-aicTable@printTable$model[modelsIncluded]
+    modelSet<-modelSet[modelSet%in%modelIndex]
+
+    if(length(modelSet)==0) return(NULL)
+
 
     lowerLimitRecord<-lowerLimitPropST<-rep(NA,length(modelSet))
 
@@ -1142,6 +1157,54 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,sear
     return(output)
   }
 
+
+}
+
+
+multiModelLowerLimits_multicore<-function(which,aicTable,cores=2,deltaThreshold=Inf,conf=0.95,
+                                          modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,
+                                          lowerList=NULL,upperList=NULL,method="nlminb", gradient=T,iterations=150){
+
+  noModels<-dim(aicTable@printTable)[1];
+  #If cores is more than the number of models, reduce so two models are fit per core
+  if(cores>noModels) cores<-noModels%/%2
+  #How many models will be run on each core?
+  modelsPerCore<-noModels%/%cores
+  #How many will be left over to run at the end?
+  remainderModels<-noModels%%cores
+
+  #Do the remainder set first
+  if(remainderModels>0){
+    output<-multiModelLowerLimits(which=which,aicTable=aicTable,deltaThreshold=deltaThreshold,conf=conf,modelIndex=1:remainderModels,searchRange=searchRange,exclude.innovations=exclude.innovations,innovations=innovations,
+                                  startValue=startValue,lowerList=lowerList,upperList=upperList,
+                                            method=method, gradient=gradient,iterations=iterations)
+  }else{output<-NULL}
+
+  #Set up for parallel processing as detailed in http://www.parallelr.com/r-with-parallel-computing/
+    cl <- makeCluster(cores)
+    registerDoParallel(cl, cores=cores)
+
+    fromCores <- foreach(i=1:cores,.combine=rbind) %dopar%
+      {
+        #I think we need to reload the NBDA package into each thread
+        library(NBDA)
+        library(coxme)
+        #Identify which models need to be fitted by this core
+        modelSet<-(1:modelsPerCore)+modelsPerCore*(i-1)+remainderModels
+
+        output<-multiModelLowerLimits(which=which,aicTable=aicTable,deltaThreshold=deltaThreshold,conf=conf,modelIndex=modelSet,searchRange=searchRange,exclude.innovations=exclude.innovations,innovations=innovations,
+                                      startValue=startValue,lowerList=lowerList,upperList=upperList,
+                                      method=method, gradient=gradient,iterations=iterations)
+
+        output
+      }
+    #Stop the cluster
+    stopImplicitCluster()
+    stopCluster(cl)
+    #Combine the table for the multiple cores with the remainder set fitted first
+
+    output<-rbind(output,fromCores)
+    return(output)
 
 }
 
