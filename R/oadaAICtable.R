@@ -1208,18 +1208,22 @@ multiModelLowerLimits_multicore<-function(which,aicTable,cores=2,deltaThreshold=
 
 }
 
-
-#This function takes the output of multiModelLowerLimits and returns the minimunm lowerCI and propST within a specified confidence set of models
-confSetLowerLimit<-function(multiModelLowerLimitsSet,confSet=.95){
-  if(confSet>=1){
-    newSet<-multiModelLowerLimitsSet
-  }else{
-    newLimit<-min(multiModelLowerLimitsSet$cumulAdjAkWeight[multiModelLowerLimitsSet$cumulAdjAkWeight>=confSet])
-    newSet<-multiModelLowerLimitsSet[multiModelLowerLimitsSet$cumulAdjAkWeight<newLimit,]
+multiModelPropST<-function(aicTable,subset=NULL,statusBar=T){
+  coefficients<-cbind(aicTable@MLEs,aicTable@MLEilv,aicTable@MLEint)
+  if(is.null(subset)) subset<-1:dim(coefficients)[1]
+  output<-NULL
+  if(statusBar) pb <- txtProgressBar(min=0, max=length(subset), style=3)
+  for(i in subset){
+    output<-rbind(output,oadaPropSolveByST(coefficients[i,],nbdadata =aicTable@nbdadata))
+    if(statusBar)setTxtProgressBar(pb, i)
   }
-  lowerCI<-min(newSet$lowerCI)
-  propST<-min(newSet$propST)
-  list(lowerCI=lowerCI,propST=propST)
-}
+  if(statusBar)close(pb)
 
+  modelAverages<-apply(output*aicTable@AkaikeWeight,2,sum)
+
+  propSTtable<-cbind(model=subset,output,weight=aicTable@AkaikeWeight)
+  propSTtable<-output[order(-aicTable@AkaikeWeight),]
+
+  return(list(propSTtable=propSTtable,modelAverages=modelAverages))
+}
 
