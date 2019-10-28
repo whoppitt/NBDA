@@ -154,7 +154,7 @@ setMethod("initialize",
 		  #If the fitted models are to be saved, add this one to the list
   		if(saveModels){
   		  #The user can choose to strip the data from the saved models to save on memory which can be massive with big datasets
-  		  if(stripData){
+  		  if(stripData&!is.null(model)){
   		    model@nbdadata<-list(NA)
   		  }
   		  models<-c(models,list(model))
