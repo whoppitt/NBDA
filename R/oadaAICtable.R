@@ -789,7 +789,7 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
   #How many will be left over to run at the end?
   remainderModels<-noModels%%cores
 
-  #I will set the models to run in sets of 10 per core (default) then write the oadaAICtable so far to a
+  #I will set the models to run in sets of modelsPerCorePerSet per core (modelsPerCore by default) then write the oadaAICtable so far to a
   #file in the working directory if writeProgressFile=T (the default is F)
   #This means in a long model run, if there is a powercut or crash the progress will be saved
   #This slows things down so only worth it for big models that take a long time to fit

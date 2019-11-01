@@ -396,7 +396,7 @@ if(is.null(lowerRange)){
 
 
 #The above functions do not work with trueTies since the likelihood cannot be corrected easily when an offsetCorrection is included (I cannot think of any way)
-#I wrote the functions below to start to provide profile likelihood confidence intervals for data with trueTies
+#I wrote the functions below to provide profile likelihood confidence intervals for data with trueTies
 
 #Currently still being tested and not written for asocial models yet
 
@@ -435,7 +435,7 @@ oadaProfileLikelihood<-function(which,value,nbdadata,startValue=NULL,lower=NULL,
     return(oadaLikelihood(value,nbdadata))
   }else{
 
-  if(which<noSParam) {noSParam<-noSParam-1}else{noILVasoc<-noILVasoc-1}
+  if(which<=noSParam) {noSParam<-noSParam-1}else{noILVasoc<-noILVasoc-1}
 
   #Set lower values if not specified by the user
   if(is.null(lower)) lower<-c(rep(0,noSParam),rep(-Inf,noILVasoc+noILVint+noILVmulti))
@@ -518,3 +518,129 @@ profLikCITrueTies<-function(which,model,interval,inflation=1,conf=0.95,startValu
   fit$minimum
 }
 
+#I wrote the functions below  to provide profile likelihood confidence intervals for differences between parameters for data with trueTies
+#The 95% CI is calculated for the difference between which - whichBaseline, so which=1 and whichBaseline=2 would get the 95% CI for parameter 1 -2
+#It is recommended to do this in each direction separately for s parameters for CI that are likely to span 0, e.g.
+#do which=1 and whichBetween=2 setting range and interval to >0
+#and then do which=2 and whichBetween=1 setting range and interval to >0 to find the limit in the opposite direction
+
+
+
+oadaDiffParamsLikelihood<-function(parVect,which,whichBaseline,value,nbdadata){
+  newParVect<-rep(NA,length(parVect)+1)
+  newParVect[-which]<-parVect
+  newParVect[which]<-newParVect[whichBaseline]+value
+  return(oadaLikelihood(newParVect,nbdadata))
+}
+
+oadaDiffParamsGradient<-function(parVect,which,whichBaseline,value,nbdadata){
+  return(grad(func=oadaDiffParamsLikelihood,x=parVect,which=which,whichBaseline=whichBaseline,value=value,nbdadata=nbdadata))
+}
+
+
+oadaDiffProfileLikelihood<-function(which,whichBaseline,value,nbdadata,startValue=NULL,lower=NULL,upper=NULL){
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp<-eval(as.name(nbdadata[1]));
+  }
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]];
+  }else{nbdadataTemp<-nbdadata}
+
+  #calculate the number of each type of parameter
+  noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
+  noILVasoc<- dim(nbdadataTemp@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp@intILVdata)[2] #ILV effects on interaction (social learning)
+  noILVmulti<- dim(nbdadataTemp@multiILVdata)[2] #ILV multiplicative model effects
+
+  if(nbdadataTemp@asoc_ilv[1]=="ILVabsent"){noILVasoc<-0} #Ignore dummy ILV
+  if(nbdadataTemp@int_ilv[1]=="ILVabsent"){noILVint<-0} #Ignore dummy ILV
+  if(nbdadataTemp@multi_ilv[1]=="ILVabsent"){noILVmulti<-0} #Ignore dummy ILV
+
+  if((noSParam+noILVasoc+noILVint+noILVmulti)==1){
+    return(oadaLikelihood(value,nbdadata))
+  }else{
+
+    if(which<=noSParam) {noSParam<-noSParam-1}else{noILVasoc<-noILVasoc-1}
+
+    #Set lower values if not specified by the user
+    if(is.null(lower)) lower<-c(rep(0,noSParam),rep(-Inf,noILVasoc+noILVint+noILVmulti))
+
+    #Set upper values if not specified by the user
+    if(is.null(upper)) upper<-c(rep(Inf,noSParam),rep(Inf,noILVasoc+noILVint+noILVmulti))
+
+    #Set staring values if not specified by the user
+    if(is.null(startValue)) startValue<-rep(0,noSParam+noILVasoc+noILVint+noILVmulti);
+
+
+    model<-nlminb(start=startValue,objective=oadaDiffParamsLikelihood,gradient=oadaDiffParamsGradient,upper=upper,lower=lower,value=value,which=which,whichBaseline=whichBaseline,nbdadata=nbdadata)
+    return(model$objective)
+
+  }
+}
+
+plotProfLikDiffTrueTies<-function(which,whichBaseline,model,range,constraintsVect=NULL,resolution=20,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+
+  if(model@type=="asocial"){
+    print("Function does not yet work for asocial models")
+    return(NULL)
+  }
+
+  nbdadata<-model@nbdadata
+
+  xVals<-seq(range[1],range[2],length=resolution)
+  profLik<-rep(NA,length(xVals))
+
+  cutoff<-model@loglik+inflation*qchisq(conf,1)/2
+
+  for(i in 1:length(xVals)){
+    profLik[i]<-oadaDiffProfileLikelihood(which=which, whichBaseline=whichBaseline,value=xVals[i],nbdadata=nbdadata,startValue=startValue,lower=lower,upper=upper)
+    plot(xVals,profLik,type="l",xlim=range,ylim=c(model@loglik-(max(na.omit(profLik))-model@loglik)*0.03,max(na.omit(profLik))),xlab=model@varNames[which],ylab="Profile log-likelihood")
+    abline(h= cutoff, lty=2)
+  }
+
+  return(data.frame(xVals,profLik))
+
+}
+
+distanceFromCutoffDiffTrueTies<-function(value,which,whichBaseline,model,inflation=1,conf=0.95,startValue=NULL,lowerIn=NULL,upperIn=NULL){
+
+  lower<-lowerIn
+  upper<-upperIn
+
+  if(model@nbdaMultiDiff[1]=="NA"){
+    nbdadata<-model@nbdadata
+  }else{
+    nbdadata<-model@nbdaMultiDiff
+    #return("Please provide specify data underlying this multi diffusion model")
+  }
+
+  #If there are multiple diffusions "borrow" the first diffusion to extract necessary parameters
+  if(is.character(nbdadata)){
+    nbdadataTemp<-eval(as.name(nbdadata[1]));
+  }
+  if(is.list(nbdadata)){
+    nbdadataTemp<-nbdadata[[1]];
+  }  else{nbdadataTemp<-nbdadata}
+
+  #calculate the number of each type of parameter
+  noSParam <- dim(nbdadataTemp@stMetric)[2] #s parameters
+  noILVasoc<- dim(nbdadataTemp@asocILVdata)[2] #ILV effects on asocial learning
+  noILVint<- dim(nbdadataTemp@intILVdata)[2] #ILV effects on interaction (social learning)
+  noILVmulti<- dim(nbdadataTemp@multiILVdata)[2] #ILV multiplicative model effects
+
+  if(nbdadataTemp@int_ilv[1]=="ILVabsent") noILVint<-0
+  if(nbdadataTemp@asoc_ilv[1]=="ILVabsent") noILVasoc<-0
+  if(nbdadataTemp@multi_ilv[1]=="ILVabsent") noILVmulti<-0
+
+  type<-fitType<-model@type
+  cutoff<-model@loglik+inflation*qchisq(conf,1)/2
+
+  return(abs(cutoff-oadaDiffProfileLikelihood(which=which,whichBaseline=whichBaseline,value=value,nbdadata=nbdadata,startValue=startValue,lower=lower,upper=upper)))
+}
+
+profLikCIDiffTrueTies<-function(which,whichBaseline,model,interval,inflation=1,conf=0.95,startValue=NULL,lower=NULL,upper=NULL){
+  fit<-optimise(f=distanceFromCutoffDiffTrueTies, interval=interval,which=which, whichBaseline=whichBaseline,model=model,inflation=inflation,conf=conf,startValue=startValue,lowerIn=lower,upperIn=upper)
+  fit$minimum
+}
