@@ -34,6 +34,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
     asocILVConstraintsVect<-constraintsVect[(noSParam+1):(noSParam+noILVasoc)]
     if(max(asocILVConstraintsVect)>0) asocILVConstraintsVect<-(asocILVConstraintsVect-min(asocILVConstraintsVect[asocILVConstraintsVect>0])+1)*(asocILVConstraintsVect>0)
     asocILVOffsetVect<-offsetVect[(noSParam+1):(noSParam+noILVasoc)]
+
   }
 
   if(nbdadata@int_ilv[1]=="ILVabsent"){
@@ -123,9 +124,31 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
   colnames(newNBDAdata@multiILVdata)<-newNBDAdata@multi_ilv
 
   newNBDAdata@offsetCorrection[,1]<-nbdadata@offsetCorrection[,1]+apply(t(sOffsetVect*t(nbdadata@stMetric)),1,sum)
-  newNBDAdata@offsetCorrection[,2]<-nbdadata@offsetCorrection[,2]+apply(t(asocILVOffsetVect*t(nbdadata@asocILVdata)),1,sum)
-  newNBDAdata@offsetCorrection[,3]<-nbdadata@offsetCorrection[,3]+apply(t(intILVOffsetVect*t(nbdadata@intILVdata)),1,sum)
-  newNBDAdata@offsetCorrection[,4]<-nbdadata@offsetCorrection[,4]+apply(t(multiILVOffsetVect*t(nbdadata@multiILVdata)),1,sum)
+
+  if(length(asocILVOffsetVect)>0){
+    tempAsocILVoffset<-t(asocILVOffsetVect*t(nbdadata@asocILVdata))
+    tempAsocILVoffset[,apply(is.na(nbdadata@asocILVdata),2,sum)>0]<-0
+    newNBDAdata@offsetCorrection[,2]<-nbdadata@offsetCorrection[,2]+apply(tempAsocILVoffset,1,sum)
+  }else {
+    newNBDAdata@offsetCorrection[,2]<-nbdadata@offsetCorrection[,2]
+  }
+
+  if(length(intILVOffsetVect)>0){
+    tempIntILVoffset<-t(intILVOffsetVect*t(nbdadata@intILVdata))
+    tempIntILVoffset[,apply(is.na(nbdadata@intILVdata),2,sum)>0]<-0
+    newNBDAdata@offsetCorrection[,3]<-nbdadata@offsetCorrection[,3]+apply(tempIntILVoffset,1,sum)
+  }else {
+    newNBDAdata@offsetCorrection[,3]<-nbdadata@offsetCorrection[,3]
+  }
+
+  if(length(multiILVOffsetVect)>0){
+    tempMultiILVoffset<-t(multiILVOffsetVect*t(nbdadata@multiILVdata))
+    tempMultiILVoffset[,apply(is.na(nbdadata@multiILVdata),2,sum)>0]<-0
+    newNBDAdata@offsetCorrection[,4]<-nbdadata@offsetCorrection[,4]+apply(tempMultiILVoffset,1,sum)
+  }else {
+    newNBDAdata@offsetCorrection[,4]<-nbdadata@offsetCorrection[,4]
+  }
+
 
   return(newNBDAdata)
 }
