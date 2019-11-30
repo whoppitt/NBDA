@@ -1,4 +1,4 @@
-plotConnections<-function(nbdadata,network=1,rescale=F,lty=1,lwd=1,col=2, symbol=NULL,xlab="Acquisition event", ylab=NULL,title=NULL,plotID=NULL,offset=c(0.1,0),xlim=NULL, ylim=NULL, titlePos=c(0,0),
+plotConnections<-function(nbdadata,network=1,rescale=F,lty=1,lwd=1,col=2,pchVector=NULL,symbol=NULL,xlab="Acquisition event", ylab=NULL,title=NULL,plotID=NULL,offset=c(0.1,0),xlim=NULL, ylim=NULL, titlePos=c(0,0),
                           averageLinelty=2,averageLinecol=4,averageLinelwd=1){
 
   connections<-nbdadata@stMetric[,network]
@@ -13,20 +13,21 @@ plotConnections<-function(nbdadata,network=1,rescale=F,lty=1,lwd=1,col=2, symbol
     if(is.null(ylab)){ylab="Total connection to informed individuals"}
   }
 
-    if(is.null(symbol)){
-      plot(nbdadata@time2,connections,col=nbdadata@status+1,xlab=xlab, ylab=ylab,main="",xlim=xlim, ylim=ylim);
-      points(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col);
-      lines(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col, lty=lty,lwd=lwd);
+  if(is.null(symbol)){symbol<-rep(1,length(connections))}
 
-    }else{
+  if(is.null(pchVector)){
+    pch<-as.numeric(as.factor(symbol))
+  }else{
+    pch<-pchVector[as.numeric(as.factor(symbol))]
+  }
 
-      plot(nbdadata@time2,connections,col=nbdadata@status+1,pch=as.numeric(as.factor(symbol)),xlab=xlab, ylab=ylab, main="",xlim=xlim, ylim=ylim)
-      points(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col,pch=as.numeric(as.factor(symbol))[nbdadata@status==1]);
-      lines(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col, lty=lty,lwd=lwd);
-    }
-    if(!is.null(plotID)){
-      text(nbdadata@time2[nbdadata@status==1]+offset[1],connections[nbdadata@status==1]+offset[2],col=col,labels=plotID);
-    }
-    text(x=titlePos[1],y=titlePos[2],labels=title)
-    lines(unique(nbdadata@time2),tapply(connections,nbdadata@time2,mean),lty=averageLinelty,col=averageLinecol,lwd=averageLinelwd)
+  plot(nbdadata@time2,connections,col=nbdadata@status+1,pch=pch,xlab=xlab, ylab=ylab, main="",xlim=xlim, ylim=ylim)
+  points(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col,pch=pch[nbdadata@status==1]);
+  lines(nbdadata@time2[nbdadata@status==1],connections[nbdadata@status==1],col=col, lty=lty,lwd=lwd);
+
+  if(!is.null(plotID)){
+    text(nbdadata@time2[nbdadata@status==1]+offset[1],connections[nbdadata@status==1]+offset[2],col=col,labels=plotID);
+  }
+  text(x=titlePos[1],y=titlePos[2],labels=title)
+  lines(unique(nbdadata@time2),tapply(connections,nbdadata@time2,mean),lty=averageLinelty,col=averageLinecol,lwd=averageLinelwd)
 }
