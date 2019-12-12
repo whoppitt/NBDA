@@ -73,7 +73,7 @@ constrainedNBDAdata<-function(nbdadata,constraintsVect,offsetVect=NULL){
 
   #Rearrange assMatrix (this is just used for trueTies)
   for(i in 1:length(unique(sConstraintsVect[sConstraintsVect>0]))){
-  if(sum(sConstraintsVect==unique(sConstraintsVect)[i])==1){
+  if(sum(sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i])==1){
     newNBDAdata@assMatrix[,,i,]<-nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],]
   }else{
     newNBDAdata@assMatrix[,,i,]<-apply(array(nbdadata@assMatrix[,,sConstraintsVect==unique(sConstraintsVect[sConstraintsVect>0])[i],],dim=dim(nbdadata@assMatrix)),c(1,2,4),sum)
