@@ -348,6 +348,121 @@ setMethod("initialize",
 )
 
 
+#'Fit a set of TADA models for multi-model inference
+#'
+#'\code{tadaAICtable} takes diffusion data in the form of an nbdaData object (\code{\link{nbdaData}}) or (\code{\link{dTADAData}})
+#' or a list of nbdaData/ dTADAData objects (for multiple diffusions). It then fits a set of models using \code{\link{tadaFit}}
+#' and return them in an object of class \code{tadaAICtable}. Arguments not listed below are used internally by
+#' \code{\link{combineTadaAICtables}} when making calls to \code{tadaAICtable} and can be ignored by the user.
+#'
+#'Each row of \code{constraintsVectMatrix}, \code{offsetVectMatrix}, and \code{baselineVect} determines a model to
+#'be fitted. For each row, constrained \code{nbdaData} objects are created using (\code{\link{constrainedNBDAdata}}) with
+#'\code{constraintsVect=constraintsVectMatrix[i,]} and \code{offsetVect=offsetVectMatrix[i,]}. A model is then fitted to
+#'the \code{nbdaData} object(s) using \code{\link{tadaFit}} with a baseline determined by \code{offsetVect=baselineVect[i]}.
+#'
+#'@seealso \code{\link{networksSupport}}, \code{\link{typeByNetworksSupport}}, \code{\link{modelAverageEstimates}},
+#' \code{\link{variableSupport}}, \code{\link{unconditionalStdErr}},\code{\link{baselineSupport}},
+#' \code{\link{combineTadaAICtables}}. For OADA models use \code{\link{oadaAICtable}}.
+#'
+#'@param nbdadata an object of class (\code{\link{nbdaData}}) or (\code{\link{dTADAData}}) to fit models to a single diffusion or a list of
+#'nbdaData/dTADAData objects to fit a model to multiple diffusions.
+#'@param constraintsVectMatrix a numerical matrix specifying the constraints, with each row specifiying a model to be fitted.
+#'The number of columns is equal to the number of parameters in the (\code{\link{nbdaData}}) or (\code{\link{dTADAData}}) object(s) input to argument
+#'\code{nbdadata}. Each row then specifies the \code{constraintsVect} to be passed to the \code{\link{constrainedNBDAdata}}
+#' when creating the data object(s) to which that model is fitted.
+#'@param typeVect optional character vector specifying if each model is "asocial" or "social". However, it is not usually
+#'necessary to specify, since models with all s parameters constrained =0 are automatically classified as "asocial", and
+#'others are assumed to be "social".
+#'@param baselineVect optional character vector specifying the baseline function for each model (see \code{\link{tadaFit}}).
+#'@param offsetVectMatrix an optional numerical matrix specifying the offsets, with each row specifiying the offsets for each
+#'model to be fitted. The number of columns is equal to the number of parameters in the (\code{\link{nbdaData}}) or (\code{\link{dTADAData}}) object(s)
+#'input to argument \code{nbdadata}. Each row then specifies the \code{offsetVect} to be passed to the
+#'\code{\link{constrainedNBDAdata}} when creating the data object(s) to which that model is fitted.
+#'@param cores numerical giving the number of computer cores to be used in parallel to fit the models in the set, thus
+#'speeding up the process. By default set to 1. For a standard desktop computer at the time of writing 4-6 is advised.
+#'@param modelsPerCorePerSet  optional numerical. If specified the models can be fit in sets, and a progress file written
+#'after each set is completed. This means progress is not completely lost in the case of a crash/ powercut etc. For example,
+#'if we have 400 models, we can specify \code{cores=4} and \code{modelsPerCorePerSet=10}. This means 10 models are fitted on
+#'each core, then progress is saved with the first 40 models, then the next 40 and so on.
+#'@param writeProgressFile logical. If set to T, a file is written to the working directory when each set of models have
+#'been completed with the tadaAICtable for the models fitted so far. In the event of a crash, the remining models can be
+#'fitted as a separate set, then combined using \code{\link{combineTadaAICtables}}.
+#'@param statusBar optional logical. Status bar only works when \code{cores=1}.
+#'@param noHazFunctParsCustom  optional numerical necessary if "custom" is specified for any models in \code{baselineVect}.
+#'See \code{\link{tadaFit}} for details.
+#'@param hazFunct  optional function necessary if "custom" is specified for any models in \code{baselineVect}.
+#'See \code{\link{tadaFit}} for details.
+#'@param cumHaz  optional function necessary if "custom" is specified for any models in \code{baselineVect}.
+#'See \code{\link{tadaFit}} for details.
+#'@param startValue optional numeric vector giving start values for the maximum likelihood optimization. Length to match
+#'the number of parameters fitted in the full model.
+#'@param lowerList optional numeric matrix giving lower values for the maximum likelihood optimization for each model.
+#'Columns to match the number of parameters fitted in the full model, rows matched to the number of models. Can be used if
+#'some models have convergence problems or trigger errors.
+#'@param upperList optional numeric matrix giving upper values for the maximum likelihood optimization for each model.
+#'Columns to match the number of parameters fitted in the full model, rows matched to the number of models. Can be used if
+#'some models have convergence problems or trigger errors.
+#'@param method optional character string passed to \code{\link{tadaFit}}.
+#'@param gradient optional logical passed to \code{\link{tadaFit}}.
+#'@param iterations optional numerical passed to \code{\link{tadaFit}}.
+#'@param aicUse string specifying whether to use "aicc" or "aic".
+#'@param combineTables logical used internally by \code{\link{combineTadaAICtables}} when making calls to \code{tadaAICtable}.
+#'
+#'@return An object of class \code{tadaAICtable}.
+#'@section print(tadaAICtable)  components:
+#'A data.frame giving a summary of models ordered by AIC can be obtained using \code{print(<name of tadaAICtable>)}. This has
+#'the following columns, listed in order: \describe{
+#'   \item{model}{Model number, i.e. the row of \code{constraintsVectMatrix} used to generate the model.}
+#'   \item{type}{Type of model. noILVs, additive (ILV effects on asocial learning only), multiplicative (all ILVs have same
+#'   effect on asocial and social learning), unconstrained (differing effects on asocial and social learning for at least one
+#'   ILV), asocial}
+#'   \item{netcombo}{A representaion of the network effects present in the model, i.e. the constraints on the s
+#'   parameters. See \code{\link{constrainedNBDAdata}}.}
+#'   \item{baseline}{The baseline function used for each model.}
+#'   \item{CONS.}{The constraint on each parameter, as taken from \code{constraintsVectMatrix}}
+#'   \item{OFF}{The offset on each parameter, as taken from \code{offsetVectMatrix}}
+#'   \item{convergence}{Was convergence reported by the optimization algorithm?}
+#'   \item{loglik}{-log-likelihood for the model.}
+#'   \item{s...}{Maximum likelihood estimates for s parameters.}
+#'   \item{ASOCIAL...}{Maximum likelihood estimates for effects of ILVs on asocial learning.}
+#'   \item{SOCIAL...}{Maximum likelihood estimates for effects of ILVs on social learning.}
+#'   \item{ASOCIAL:SOCIAL...}{Maximum likelihood estimates for multiplicative effects of ILVs see \code{\link{tadaFit}}.}
+#'   \item{SE...}{Standard errors for each parameter, set to 0 when a parameter was constrained. See \code{\link{tadaFit}}.}
+#'   \item{aic}{AIC for the model.}
+#'   \item{aicc}{AICc for the model.}
+#'   \item{deltaAICc}{Difference in AICc or AIC from the best model.}
+#'   \item{RelSupport}{Relative support for the model compared to the best model, calculated as exp(-0.5*deltaAICc).}
+#'   \item{AkaikeWeight}{Akaike weight for the model. Can be interpretted as the probability that model has the highest
+#'   predictive power (K-L information) out of the set of models considered.}
+#'   }
+#'@section tadaAICtable components:\describe{
+#'   \item{@@nbdadata}{The unconstrained data the model is fitted to, as a list of nbdaData objects.}
+#'   \item{@@convergence}{Was convergence reported by the optimization algorithm? (Ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@logLik}{-log-likeihood for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@aicc}{AICc for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@aic}{AIC for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@constraintsVectMatrix}{\code{constraintsVectMatrix} input to the function.}
+#'   \item{@@offsetVectMatrix}{\code{offsetVectMatrix} input to the function.}
+#'   \item{@@MLEs}{Maximum likelihood estimates for s parameters (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@SEs}{Standard errors for s parameters (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@MLEilv}{Maximum likelihood estimates for effect of ILs on asocial learning (ordered by
+#'   \code{constraintsVectMatrix}).}
+#'   \item{@@SEilv}{Standard errors for effect of ILs on asocial learning  (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@MLEint}{Maximum likelihood estimates for effect of ILs on social learning (ordered by
+#'   \code{constraintsVectMatrix}).}
+#'   \item{@@SEint}{Standard errors for effect of ILs on social learning  (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@MLEhaz}{Maximum likelihood estimates for baseline rate/hazard function (ordered by
+#'   \code{constraintsVectMatrix}).}
+#'   \item{@@SEhaz}{Standard errors for baseline rate/hazard function (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@typeVect}{Type of models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@baselineVect}{The baseline function used for each model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@deltaAICc}{Difference in AICc or AIC from the best model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@RelSupport}{Relative support for the model compared to the best model, calculated as exp(-0.5*deltaAICc).
+#'   (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@RelSupport}{Akaike weight for the model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@printTable}{data.frame to be output by the print method for \code{tadaAICtable} (see above).}
+#'}
+
 
 #Function for implementing the initialization
 tadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL,baselineVect=NULL, offsetVectMatrix = NULL,
@@ -390,6 +505,19 @@ print.tadaAICtable<-function (tadaAICtable)
 		tadaAICtable@printTable
 	}
 
+#'Get the support for each baseline rate function from a tadaAICtable
+#'
+#'Calculates the support for each baseline rate function fitted in a set of models fitted using #'\code{\link{tadaAICtable}}.
+#'
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{networksSupport}}, \code{\link{modelAverageEstimates}}, \code{\link{variableSupport}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{tadaAICtable}}.
+#'
+#'@return matrix giving the support (total Akaike Weight) and number of models fitted for each combination.
+
 
 baselineSupport<-function(tadaAICtable){
   #Calculate support for each combination of network constraints in the table
@@ -398,6 +526,30 @@ baselineSupport<-function(tadaAICtable){
   return(data.frame(support=support,numberOfModels=numbers))
 }
 
+
+#'Combine two or more tadaAICtables into a single tadaAICtable
+#'
+#'Takes two or more \code{\link{tadaAICtable}} objects, containing different models including the same number of networks and
+#'the same ILVs, and combine them into a single table.
+#'
+#'This function can be used for a variety of practical reasons. If the \code{\link{tadaAICtable}} is interrupted and a partial
+#'tadaAICtable recovered, the remaining models can be run as a separate set and combined with the first partial set. Alternatively,
+#'the user might want to add more models to a set without re-running the entire set, or run different parts of a model set on
+#'different computers to speed up computation time. It is also possible to run model sets with different networks and then combine
+#'them using \code{combineTadaAICtables}, so long as the number of networks matches (though it is possible to have dummy networks
+#'that are constrained to have s=0 in all models, in order to match network number). In such cases a modifier can be added to the
+#'netcombo codes from each tadaAICtable so they can be distinguished by functions such as \code{\link{networksSupport}}. e.g.
+#'if we have two tadaAICtable objects each with the netcombos "1:0","0:1","1:2". If we use
+#'\code{netComboModifier= c("NetworksA:","NetworksB:")} we get netcombos "NetworksA:1:0","NetworksA:0:1","NetworksA:1:2",
+#'"NetworksB:1:0","NetworksB:0:1","NetworksB:1:2" in the resulting tadaAICtable object.
+#'
+#'@seealso \code{\link{tadaAICtable}}
+#'
+#'@param tadaAICtableList a lift of \code{\link{tadaAICtable}} objects to be combined into a single table.
+#'@param aicUse string specifying whether to use "aicc" or "aic".
+#'@param netComboModifier optional character vector with length matching the length of \code{tadaAICtableList} to modify the
+#'netcombo strings recorded from each individual \code{\link{tadaAICtable}} object (see below).
+#'@return An object of class \code{tadaAICtable}.
 
 combineTadaAICtables<-function(tadaAICtableList,aicUse="aicc",netComboModifier=rep("",length(tadaAICtableList))){
 

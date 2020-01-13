@@ -1,13 +1,3 @@
-#Editted for constrained model
-
-#debugged by Will on 16/8/16
-#editted to take dynamic networks on 6/9/16- tested with static networks, needs testing with dynamic
-#Also deleted groupid, taskid, group, task, groupvect, taskvect and diffVect as I believe these are no longer needed in the streamlined version
-
-# If timeAcq are specified an object for fitting TADA is created, else an OADA object is created
-# Else we run into problems with the fact that TADA object slots can be one line longer if not everyone learns
-# I am adapting the OADA functions so they work the same on either object
-
 setClass("nbdaData", representation(label="vector", idname="vector", assMatrix="array", asoc_ilv="vector", int_ilv="vector",multi_ilv="vector",random_effects="vector",orderAcq="vector", timeAcq="vector",endTime="numeric",updateTimes="vector", ties="vector", trueTies="list", demons="vector", weights="vector",statusMatrix="matrix", availabilityMatrix="matrix",presenceMatrix="matrix", event.id="vector", id="vector", time1="vector", time2="vector",TADAtime1="vector", TADAtime2="vector", status="vector", presentInDiffusion ="vector", assMatrixIndex="vector",asocialTreatment="character", stMetric="matrix", asocILVdata="matrix",intILVdata="matrix",multiILVdata="matrix",offsetCorrection="matrix",randomEffectdata="matrix"));
 
 setMethod("initialize",
@@ -709,6 +699,86 @@ setMethod("initialize",
           } # end function
 
 ) # end setMethod "initialize"
+
+
+#'Create an nbdaData object
+#'
+#'\code{nbdaData} creates an object of class nbdaData required for conducting a network-based diffusion analysis (NBDA) using
+#'\code{\link{oadaFit}} or fitting a continuous TADA using \code{\link{tadaFit}}.
+#'
+#'An nbdaData object is required to contain the data for each diffusion to be used in the network based diffusion analysis
+#'when using the order of acquisition diffusion analysis (OADA) method (\code{\link{oadaFit}} function) or continuous time of
+#'acquistion diffusion analysis (cTADA) method (\code{\link{tadaFit}} function). When multiple diffusions are being modelled
+#' a list of nbdaData objects is provided to the \code{\link{oadaFit}} or \code{\link{tadaFit}} function.
+#'
+#'@seealso To create a data object for discrete TADA models use \code{\link{dTADAData}}.
+#'
+#'@param label a string giving a name for the diffusion
+#'@param idname an optional vector giving an id for each individual in the diffusion. Order to match that used in assMatrix.
+#'@param assMatrix a three or four dimensional array specifying the association matrices or social network(s) to be included
+#'in the analysis.
+#'If assMatrix has three dimensions the networks are assumed to be static. The first dimension is the row of the social
+#'network(s) and the second dimension is the column. Connections are taken to be from the column to the row, such that the
+#'entry in row i and column j gives the connection from j to i. The third dimension contains the different networks to be
+#'included in the analysis, i.e. assMatrix[,,1] gives the first network, assMatrix[,,2] the second and so on. If a fourth
+#'dimension is included the network is taken to vary over time, with assMatrix[,,k,1] giving the values for network k in
+#'time period 1, assMatrix[,,k,2] giving the values for network k in time period 2 and so on (see assMatrixIndex below).
+#'@param asoc for backwards compatibility only, now replaced with asoc_ilv below.
+#'@param asoc_ilv an optional character vector giving the names of individual-level variables (ILVs) having an effect on the
+#'rate of asocial learning. Each entry in asoc_ilv must refer to an object containing the data for that variable. If
+#'asocialTreatment= "constant", each variable must be a single column matrix with rows equal to the number of rows in
+#'assMatrix, thus providing a single value for each individual in the diffusion. If asocialTreatment= "timevarying" then
+#'each variable must be a matrix with columns equal to the number of acquisition event, and rows equal to the number of
+#'rows in  assMatrix, thus providing a  value for each individual in the diffusion at the time of each acquisition event.
+#'@param int_ilv a optional character vector giving the names of individual-level variables (ILVs) having an (interactive)
+#'effect on the rate of social learning. These are specified as for asoc_ilv.
+#'@param multi_ilv a optional character vector giving the names of individual-level variables (ILVs) having the same effect
+#'on both asocial and social learning (referred to as the multiplicative model). These are specified as for asoc_ilv.
+#'@param random_effects a optional character vector giving the names of random effects. Each variable must be a single
+#'column matrix with rows equal to the number of rows in assMatrix, thus providing a single level for each individual in the
+#'diffusion. These only have an effect when using \code{\link{oadaFit}}, and are assumed to operate equally on social and asocial
+#'learning. If more complex effects are required, or random effects are required for a TADA then a Bayesian approach is
+#'recommended (not implemented in the NBDA package).
+#'@param orderAcq a numerical vector giving the order in which individuals acquired the target behaviour, with numbers
+#'referring to rows of assMatrix.
+#'@param timeAcq a numerical vector giving the time at which each individual acquired the target behaviour, given in the
+#'order matching orderAcq. This is necessary for conducting a TADA with \code{\link{tadaFit}} but not if conducting an OADA with
+#'\code{\link{oadaFit}}.
+#'@param endTime numeric giving the time at which the diffusion ended. This is necessary for conducting a TADA with
+#'\code{\link{tadaFit}} but not if conducting an OADA with \code{\link{oadaFit}}.
+#'@param ties numeric binary vector specifying if each acquisition was "tied" with the acquisition before. e.g.
+#'c(0,1,1,0,0,1,1) specifies that events 2 and 3 are tied, as are events 6 and 7. Events should be specified as ties if they
+#'occurred too close in time for the individuals in question to have plausibly have learned from one another(in contrast to
+#'trueTies below).
+#'@param trueTies a list of numeric vectors specifying which events are trueTies, i.e. where we do not know the order in
+#'which the events occurred. e.g. list(c(1,2),c(10,11,12)) specifies that we do not know the real order of events 1 and 2,
+#'or of events 10, 11 and 12. This is only applicable to OADA using \code{\link{oadaFit}}. trueTies are accounted for by adding the
+#'likelihood across all orders consistent with the trueTies, so can be highly computationally intensive for large trueTies or
+#'large numbers of trueTies.
+#'@param updateTimes non-functioning argument- can be ignored.
+#'@param demons an optional binary numeric vector specifying which individuals are trained demonstrators or had otherwise already
+#'acquired the target behaviour prior to the start of the diffusion. Length should match the number of rows of assMatrix.
+#'e.g. c(0,0,1,0,0,0,1) specifies that individuals 3 and 7 are trained demonstrators.
+#'@param presenceMatrix an optional binary matrix specifying who was present in the diffusion for each event- set to 1s by default.
+#'Number of rows to match the number of individuals, and the number of columns to match the number of events (length of
+#'orderAcq). 1 denotes that an individual was present in the diffusion for a given event, 0 denotes that an individual was
+#'absent, and so could neither learn nor transmit the behaviour to others for that event. Set to 1s by default.
+#'@param assMatrixIndex a numeric vector necessary if time-varying networks are used, i.e. if assMatrix is a four dimensional
+#'array. This specifies which time period (4th dimension of assMatrix) is applicable to each event.
+#'e.g. assMatrixIndex=c(1,1,1,2,2,2,3,3,3) specifies that assMatrix[,,,1] gives the networks for events 1-3, assMatrix[,,,2]
+#'gives the networks for events 4-6 and assMatrix[,,,3] gives the networks for events 7-9.
+#'@param weights an optional numeric vector giving the transmission weights for each individual, length to match the number of rows in
+#'assMatrix. It is assumed that the rate at which information is transmitted FROM individual j is multiplied by entry j in
+#'the weights vector.
+#'@param asocialTreatment a string- "constant" if ILVs are assumed to be constant over time and "timevarying" if they are
+#'assumed to be different for each acquistision event. See asoc_ilv, int_ilv and multi_ilv above.
+#'@param offsetCorrection a four column matrix with rows equal to the number of individuals, specifying the offset to be
+#'added to the social learning component and the linear predictors for the effect of ILVs on asocial learning, social
+#'learning, or on both (multiplicative effect). This is used by other functions calling the \code{nbdaData} function and it
+#'is not anticipated that users will need to use this argument directly.
+#'@return Returns an object of class nbdaData, which can be used to conduct an NBDA using \code{\link{oadaFit}} or \code{\link{tadaFit}}
+#'functions.
+
 
 nbdaData <- function(label, idname=NULL, assMatrix, asoc=NULL, asoc_ilv="ILVabsent",int_ilv="ILVabsent",multi_ilv="ILVabsent",random_effects="REabsent", orderAcq, timeAcq=NA, endTime=max(timeAcq)+1,ties=NULL, trueTies=list(NULL), updateTimes=NULL, demons=NULL, presenceMatrix =NULL,assMatrixIndex= rep(1,length(orderAcq)), weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL){
 
