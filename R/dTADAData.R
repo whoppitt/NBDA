@@ -39,8 +39,8 @@ setMethod("initialize",
               status <- presentInDiffusion <-vector(); # set up the status vector and presentInDiffusion vector
 
               # If there is just one asocial variable matrix for all events and times, then you will have a column matrix for each ILV, the length of the number of individuals
-              # If there are more than one asocial variable matrices (i.e. time-varying covariates), then you will have a matrix for each ILV, with rows equal to the number of individuals, and columns equal to the number of acquisition events (because in OADA we are constraining this to be the case: ILVs can only change at the same time as acquisition events occur otherwise you can't obtain a marginal likelihood, Will says, only a partial likelihood)
-              asoc_ilv.dim <- dim(eval(as.name(asoc_ilv[1])))[1] # specify the dimensions of assoc.array
+              # If there are more than one asocial variable matrices (i.e. time-varying covariates), then you will have a matrix for each ILV, with rows equal to the number of individuals, and columns equal to the number of time steps
+
               int_ilv.dim <- dim(eval(as.name(int_ilv[1])))[1] # specify the dimensions of assoc.array
               multi_ilv.dim <- dim(eval(as.name(multi_ilv[1])))[1] # specify the dimensions of assoc.array
               random_effects.dim <- dim(eval(as.name(random_effects[1])))[1] # specify the dimensions of assoc.array
@@ -268,6 +268,75 @@ setMethod("initialize",
           } # end function
 
 ) # end setMethod "initialize"
+
+
+
+
+#'Create a dTADAdata object
+#'
+#'\code{dTADAdata} creates an object of class dTADAdata required for conducting a network-based diffusion analysis (NBDA) using
+#' a discrete time of acquisition diffusion analysis (dTADA) using the \code{\link{tadaFit}} function.
+#'
+#'An dTADAdata object is required to contain the data for each diffusion to be used in the network based diffusion analysis
+#'when using the discrete time of acquistion diffusion analysis (dTADA) method (\code{\link{tadaFit}} function). When multiple
+#'diffusions are being modelled a list of nbdaData objects is provided to the \code{\link{tadaFit}} function.
+#'
+#'@param label a string giving a name for the diffusion
+#'@param idname an optional vector giving an id for each individual in the diffusion. Order to match that used in assMatrix.
+#'@param assMatrix a three or four dimensional array specifying the association matrices or social network(s) to be included
+#'in the analysis.
+#'If assMatrix has three dimensions the networks are assumed to be static. The first dimension is the row of the social
+#'network(s) and the second dimension is the column. Connections are taken to be from the column to the row, such that the
+#'entry in row i and column j gives the connection from j to i. The third dimension contains the different networks to be
+#'included in the analysis, i.e. assMatrix[,,1] gives the first network, assMatrix[,,2] the second and so on. If a fourth
+#'dimension is included the network is taken to vary over time, with assMatrix[,,k,1] giving the values for network k in
+#'time period 1, assMatrix[,,k,2] giving the values for network k in time period 2 and so on (see assMatrixIndex below).
+#'@param asoc for backwards compatibility only, now replaced with asoc_ilv below.
+#'@param asoc_ilv an optional character vector giving the names of individual-level variables (ILVs) having an effect on the
+#'rate of asocial learning. Each entry in asoc_ilv must refer to an object containing the data for that variable. If
+#'asocialTreatment= "constant", each variable must be a single column matrix with rows equal to the number of rows in
+#'assMatrix, thus providing a single value for each individual in the diffusion. If asocialTreatment= "timevarying" then
+#'each variable must be a matrix with columns equal to the number of time steps, and rows equal to the number of
+#'rows in  assMatrix, thus providing a  value for each individual in the diffusion for each discrete time step.
+#'@param int_ilv a optional character vector giving the names of individual-level variables (ILVs) having an (interactive)
+#'effect on the rate of social learning. These are specified as for asoc_ilv.
+#'@param multi_ilv a optional character vector giving the names of individual-level variables (ILVs) having the same effect
+#'on both asocial and social learning (referred to as the multiplicative model). These are specified as for asoc_ilv.
+#'@param random_effects a optional character vector giving the names of random effects. Each variable must be a single
+#'column matrix with rows equal to the number of rows in assMatrix, thus providing a single level for each individual in the
+#'diffusion. These random effects are currently NOT INCLUDED when the dTADA model is fitted. The slot is made available
+#'for forwards compatibility with a planned Bayesian NBDA package in development.
+#'@param orderAcq a numerical vector giving the order in which individuals acquired the target behaviour, with numbers
+#'referring to rows of assMatrix. The order does not to be resolved within each time step, and it does not matter what order
+#'individuals are listed if they learned within the same time step.
+#'@param timeAcq a numerical vector giving the time step during which each individual acquired the target behaviour, given in
+#'the order matching orderAcq.
+#'@param endTime numeric giving the final time step in the diffusion.
+#'@param updateTimes non-functioning argument- can be ignored.
+#'@param demons a binary numeric vector specifying which individuals are trained demonstrators or had otherwise already
+#'acquired the target behaviour prior to the start of the diffusion. Length should match the number of rows of assMatrix.
+#'e.g. c(0,0,1,0,0,0,1) specifies that individuals 3 and 7 are trained demonstrators.
+#'@param presenceMatrix a binary matrix specifying who was present in the diffusion for each time period- set to 1s by default.
+#'Number of rows to match the number of individuals, and the number of columns to match the number of time periods (endTime).
+#'1 denotes that an individual was present in the diffusion for a given time period, 0 denotes that an individual was
+#'absent, and so could neither learn nor transmit the behaviour to others during that time period. Set to 1s by default.
+#'@param assMatrixIndex a numeric vector necessary if time-varying networks are used, i.e. if assMatrix is a four dimensional
+#'array. This specifies which time period (4th dimension of assMatrix) is applicable to each time step
+#'e.g. assMatrixIndex=c(1,1,1,2,2,2,3,3,3) specifies that assMatrix[,,,1] gives the networks for time steps 1-3, assMatrix[,,,2]
+#'gives the networks for time steps 4-6 and assMatrix[,,,3] gives the networks for time steps 7-9.
+#'@param weights a numeric vector giving the transmission weights for each individual, length to match the number of rows in
+#'assMatrix. It is assumed that the rate at which information is transmitted FROM individual j is multiplied by entry j in
+#'the weights vector.
+#'@param asocialTreatment a string- "constant" if ILVs are assumed to be constant over time and "timevarying" if they are
+#'assumed to be different for each time step. See asoc_ilv, int_ilv and multi_ilv above.
+#'@param offsetCorrection a four column matrix with rows equal to the number of individuals, specifying the offset to be
+#'added to the social learning component and the linear predictors for the effect of ILVs on asocial learning, social
+#'learning, or on both (multiplicative effect). This is used by other functions calling the \code{nbdaData} function and it
+#'is not anticipated that users will need to use this argument directly.
+#'@return Returns an object of class dTADAdata, which can be used to conduct an NBDA using the \code{\link{tadaFit}} functions.
+
+
+
 
 dTADAData <- function(label, idname=NULL, assMatrix, asoc=NULL, asoc_ilv="ILVabsent",int_ilv="ILVabsent",multi_ilv="ILVabsent", orderAcq, timeAcq,dTimePeriods=rep(1,endTime),
                       endTime, updateTimes=NULL, demons=NULL, presenceMatrix =NULL,assMatrixIndex= rep(1,endTime), weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL){

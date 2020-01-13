@@ -1,7 +1,3 @@
-#At a future date: Make it possible to use multiple Cores on this. Need to make sure the temp objects are being written to different environments but should work automatically.
-#Update- now added a function to combine oadaAICtables, so the user can at least run parts of the constraintsVectMatrix on different cores then manually
-#combine them using this fuction
-#I should also be able to use this to create a multicore version later.
 
 #Define class of object for the fitted additive model
 setClass("oadaAICtable",representation(nbdaMultiDiff
@@ -359,6 +355,126 @@ setMethod("initialize",
 )
 
 
+#'Fit a set of OADA models for multi-model inference
+#'
+#'\code{oadaAICtable} takes diffusion data in the form of an nbdaData object (\code{\link{nbdaData}}) or a list of nbdaData
+#'objects (for multiple diffusions). It then fits a set of models using \code{\link{oadaFit}} and return them in an object
+#'of class \code{oadaAICtable}. Arguments not described below are used internally by \code{\link{combineOadaAICtables}} when
+#'making calls to \code{oadaAICtable} and can be ignored by the user.
+#'
+#'Each row of \code{constraintsVectMatrix} and \code{offsetVectMatrix} determines a model to
+#'be fitted. For each row, constrained \code{nbdaData} objects are created using (\code{\link{constrainedNBDAdata}}) with
+#'\code{constraintsVect=constraintsVectMatrix[i,]} and \code{offsetVect=offsetVectMatrix[i,]}. A model is then fitted to
+#'the \code{nbdaData} object(s) using \code{\link{oadaFit}}.
+#'
+#'@seealso \code{\link{typeSupport}}, \code{\link{networksSupport}}, \code{\link{typeByNetworksSupport}}, \code{\link{modelAverageEstimates}},
+#' \code{\link{variableSupport}}, \code{\link{unconditionalStdErr}}, \code{\link{combineOadaAICtables}}. For TADA models
+#'use \code{\link{tadaAICtable}}.
+#'
+#'@param nbdadata an object of class (\code{\link{nbdaData}}) to fit models to a single diffusion or a list of
+#'nbdaData objects to fit a model to multiple diffusions.
+#'@param constraintsVectMatrix a numerical matrix specifying the constraints, with each row specifiying a model to be fitted.
+#'The number of columns is equal to the number of parameters in the (\code{\link{nbdaData}}) object(s) input to argument
+#'\code{nbdadata}. Each row then specifies the \code{constraintsVect} to be passed to the \code{\link{constrainedNBDAdata}}
+#' when creating the data object(s) to which that model is fitted.
+#'@param typeVect optional character vector specifying if each model is "asocial" or "social". However, it is not usually
+#'necessary to specify, since models with all s parameters constrained =0 are automatically classified as "asocial", and
+#'others are assumed to be "social".
+#'@param offsetVectMatrix an optional numerical matrix specifying the offsets, with each row specifiying the offsets for each
+#'model to be fitted. The number of columns is equal to the number of parameters in the (\code{\link{nbdaData}}) object(s)
+#'input to argument \code{nbdadata}. Each row then specifies the \code{offsetVect} to be passed to the
+#'\code{\link{constrainedNBDAdata}} when creating the data object(s) to which that model is fitted.
+#'@param cores numerical giving the number of computer cores to be used in parallel to fit the models in the set, thus
+#'speeding up the process. By default set to 1. For a standard desktop computer at the time of writing 4-6 is advised.
+#'@param modelsPerCorePerSet  optional numerical. If specified the models can be fit in sets, and a progress file written
+#'after each set is completed. This means progress is not completely lost in the case of a crash/ powercut etc. For example,
+#'if we have 400 models, we can specify \code{cores=4} and \code{modelsPerCorePerSet=10}. This means 10 models are fitted on
+#'each core, then progress is saved with the first 40 models, then the next 40 and so on.
+#'@param writeProgressFile logical. If set to T, a file is written to the working directory when each set of models have
+#'been completed with the oadaAICtable for the models fitted so far. In the event of a crash, the remining models can be
+#'fitted as a separate set, then combined using \code{\link{combineOadaAICtables}}.
+#'@param saveTableList logical. If set to T, a file is written to the working directory containing a list of oadaAICtable
+#'objects- one for each set of models per core (see \code{modelsPerCorePerSet}). This is useful if there is an error in one
+#'or more of the models preventing the oadaAICtable from being calculated properly. In this case the set(s) containing the
+#'faulty model can be corrected, refitted using \code{oadaAICtable}, and replaced in the list. The oadaAICtable can then
+#'be reformed using \code{\link{combineOadaAICtables}}.
+#'@param statusBar optional logical. Status bar only works when \code{cores=1}.
+#'@param startValue optional numeric vector giving start values for the maximum likelihood optimization. Length to match
+#'the number of parameters fitted in the full model.
+#'@param lowerList optional numeric matrix giving lower values for the maximum likelihood optimization for each model.
+#'Columns to match the number of parameters fitted in the full model, rows matched to the number of models. Can be used if
+#'some models have convergence problems or trigger errors.
+#'@param upperList optional numeric matrix giving upper values for the maximum likelihood optimization for each model.
+#'Columns to match the number of parameters fitted in the full model, rows matched to the number of models. Can be used if
+#'some models have convergence problems or trigger errors.
+#'@param method optional character string passed to \code{\link{oadaFit}}.
+#'@param gradient optional logical passed to \code{\link{oadaFit}}.
+#'@param iterations optional numerical passed to \code{\link{oadaFit}}.
+#'@param aicUse string specifying whether to use "aicc" or "aic".
+#'@param combineTables logical used internally by \code{\link{combineOadaAICtables}} when making calls to \code{oadaAICtable}.
+#'@param saveModels logical determining whether the fitted model objects should be saved as a list as a component in the
+#'\code{oadaAICtable} object. This can be useful for accessing individual models without re-fitting them (e.g. to get
+#'confidence intervals using \code{\link{profLikCI}}). Alternatively individual problem models can be refitted, replaced in
+#'the list, and the \code{oadaAICtable} re-generated using \code{oadaAICtable} using the \code{models} argument (see below).
+#'@param stripData logical. By default, when \code{saveModels=T} each model is saved with its constrained version of the
+#'data. Whilst this can be useful, if there are lots of models and/or a lot of data, this can take up too much memory.
+#'setting \code{saveModels=T} and \code{stripData=T} enables the models to be saved without their data.
+#'@param models an optional list of model objects of class \code{\link{oadaFit}}. If provided, the models are not fitted
+#'but taken from the list when generating the oadaAICtable. This is useful if individual models have been corrected and the
+#'user needs to re-form the oadaAICtable.
+#'
+#'@return An object of class \code{oadaAICtable}.
+#'@section print(oadaAICtable)  components:
+#'A data.frame giving a summary of models ordered by AIC can be obtained using \code{print(<name of oadaAICtable>)}. This has
+#'the following columns, listed in order: \describe{
+#'   \item{model}{Model number, i.e. the row of \code{constraintsVectMatrix} used to generate the model.}
+#'   \item{type}{Type of model. noILVs, additive (ILV effects on asocial learning only), multiplicative (all ILVs have same
+#'   effect on asocial and social learning), unconstrained (differing effects on asocial and social learning for at least one
+#'   ILV), socialEffectsOnly (ILV effects only on social learning),asocial}
+#'   \item{netcombo}{A representaion of the network effects present in the model, i.e. the constraints on the s
+#'   parameters. See \code{\link{constrainedNBDAdata}}.}
+#'   \item{baseline}{Used for TADA models only, set to NA here.}
+#'   \item{CONS.}{The constraint on each parameter, as taken from \code{constraintsVectMatrix}}
+#'   \item{OFF}{The offset on each parameter, as taken from \code{offsetVectMatrix}}
+#'   \item{convergence}{Was convergence reported by the optimization algorithm?}
+#'   \item{loglik}{-log-likelihood for the model.}
+#'   \item{s...}{Maximum likelihood estimates for s parameters.}
+#'   \item{ASOCIAL...}{Maximum likelihood estimates for effects of ILVs on asocial learning.}
+#'   \item{SOCIAL...}{Maximum likelihood estimates for effects of ILVs on social learning.}
+#'   \item{ASOCIAL:SOCIAL...}{Maximum likelihood estimates for multiplicative effects of ILVs see \code{\link{oadaFit}}.}
+#'   \item{SE...}{Standard errors for each parameter, set to 0 when a parameter was constrained. See \code{\link{oadaFit}}.}
+#'   \item{aic}{AIC for the model.}
+#'   \item{aicc}{AICc for the model.}
+#'   \item{deltaAICc}{Difference in AICc or AIC from the best model.}
+#'   \item{RelSupport}{Relative support for the model compared to the best model, calculated as exp(-0.5*deltaAICc).}
+#'   \item{AkaikeWeight}{Akaike weight for the model. Can be interpretted as the probability that model has the highest
+#'   predictive power (K-L information) out of the set of models considered.}
+#'   }
+#'@section oadaAICtable components:\describe{
+#'   \item{@@nbdadata}{The unconstrained data the model is fitted to, as a list of nbdaData objects.}
+#'   \item{@@models}{A list of fitted model objects of class \code{\link{oadaFit}}, if saved.}
+#'   \item{@@convergence}{Was convergence reported by the optimization algorithm? (Ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@logLik}{-log-likeihood for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@aicc}{AICc for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@aic}{AIC for models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@constraintsVectMatrix}{\code{constraintsVectMatrix} input to the function.}
+#'   \item{@@offsetVectMatrix}{\code{offsetVectMatrix} input to the function.}
+#'   \item{@@MLEs}{Maximum likelihood estimates for s parameters (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@SEs}{Standard errors for s parameters (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@MLEilv}{Maximum likelihood estimates for effect of ILs on asocial learning (ordered by
+#'   \code{constraintsVectMatrix}).}
+#'   \item{@@SEilv}{Standard errors for effect of ILs on asocial learning  (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@MLEint}{Maximum likelihood estimates for effect of ILs on social learning (ordered by
+#'   \code{constraintsVectMatrix}).}
+#'   \item{@@SEint}{Standard errors for effect of ILs on social learning  (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@typeVect}{Type of models (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@deltaAICc}{Difference in AICc or AIC from the best model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@RelSupport}{Relative support for the model compared to the best model, calculated as exp(-0.5*deltaAICc).
+#'   (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@RelSupport}{Akaike weight for the model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@printTable}{data.frame to be output by the print method for \code{oadaAICtable} (see above).}
+#'}
+
 
 #Function for implementing the initialization
 oadaAICtable <-function(nbdadata,  constraintsVectMatrix,typeVect=NULL, offsetVectMatrix = NULL, cores=1, modelsPerCorePerSet=NULL,writeProgressFile=F,saveTableList=F,statusBar=NULL,startValue=NULL,method="nlminb", gradient=T,iterations=150,aicUse="aicc",lowerList=NULL,upperList=NULL,combineTables=F,
@@ -395,6 +511,29 @@ print.oadaAICtable<-function (oadaAICtable)
 		oadaAICtable@printTable
 	}
 
+
+#'Get the support for each type of model from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the support for each type of model fitted in a set of models fitted using \code{\link{oadaAICtable}} or
+#'\code{\link{tadaAICtable}}.
+#'
+#'Models are classified as: \describe{
+#'   \item{noILVs;}{}
+#'   \item{additive: ILV effects on asocial learning only;}{}
+#'   \item{multiplicative: all ILVs have same effect on asocial and social learning;}{}
+#'   \item{unconstrained: differing effects on asocial and social learning for at least one ILV;}{}
+#'   \item{socialEffectsOnly: ILV effects only on social learning;}{}
+#'   \item{asocial: no social transmission (all s=0).}{}
+#'   }
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{networksSupport}},
+#'\code{\link{typeByNetworksSupport}}, \code{\link{modelAverageEstimates}}, \code{\link{variableSupport}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'
+#'@return dataframe giving the support (total Akaike Weight) and number of models of each type.
+
 typeSupport<-function(nbdaAICtable){
 	#Calculate support for each type of model in the table
 	support<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$type,sum)
@@ -402,12 +541,58 @@ typeSupport<-function(nbdaAICtable){
 	return(data.frame(support=support,numberOfModels=numbers))
 }
 
+
+#'Get the support for each network combination from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the support for network combination fitted in a set of models fitted using \code{\link{oadaAICtable}} or
+#'\code{\link{tadaAICtable}}.
+#'
+#'Network combinations are represented by the set of constraints on the s parameters used to generate the model, using the
+#'\code{constraintsVectMatrix} argument. e.g. 1:1:1 means all three networks in the data were constrained to have the same
+#'effect, 1:2:0 means the first two networks have different effects, whereas the third is constrained to have no effect, and
+#'0:0:0 represents asocial models.
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{networksSupport}}, \code{\link{modelAverageEstimates}}, \code{\link{variableSupport}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'
+#'@return dataframe giving the support (total Akaike Weight) and number of models fitted for each combination.
+
+
 networksSupport<-function(nbdaAICtable){
   #Calculate support for each combination of network constraints in the table
   support<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$netCombo,sum)
   numbers<-tapply(nbdaAICtable@printTable$AkaikeWeight, nbdaAICtable@printTable$netCombo,length)
   return(data.frame(support=support,numberOfModels=numbers))
 }
+
+#'Get the support for each network x type combination from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the support for network x type of model combination fitted in a set of models fitted using
+#'\code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'
+#'Network combinations are represented by the set of constraints on the s parameters used to generate the model, using the
+#'\code{constraintsVectMatrix} argument. e.g. 1:1:1 means all three networks in the data were constrained to have the same
+#'effect, 1:2:0 means the first two networks have different effects, whereas the third is constrained to have no effect, and
+#'0:0:0 represents asocial models. For type, models are classified as: \describe{
+#'   \item{noILVs;}{}
+#'   \item{additive: ILV effects on asocial learning only;}{}
+#'   \item{multiplicative: all ILVs have same effect on asocial and social learning;}{}
+#'   \item{unconstrained: differing effects on asocial and social learning for at least one ILV;}{}
+#'   \item{socialEffectsOnly: ILV effects only on social learning;}{}
+#'   \item{asocial: no social transmission (all s=0).}{}
+#'   }
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{typeByNetworksSupport}}, \code{\link{modelAverageEstimates}}, \code{\link{variableSupport}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'
+#'@return array giving the support (total Akaike Weight) and number of models fitted for each network combination.
+
 
 typeByNetworksSupport<-function(nbdaAICtable){
   if(class(nbdaAICtable)=="oadaAICtable"){
@@ -439,6 +624,29 @@ typeByNetworksSupport<-function(nbdaAICtable){
   }
 }
 
+#'Get the support for each variable from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the support for each variable fitted in a set of models fitted using \code{\link{oadaAICtable}} or
+#'code{\link{tadaAICtable}}.
+#'
+#'The support for each variable is the total Akaike weight for the models in which that variable is present, i.e. not
+#'constrained to =0.
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{typeByNetworksSupport}}, \code{\link{networksSupport}}, \code{\link{modelAverageEstimates}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'@param typeFilter  an optional string allowing the user to get the support for variables within a specified type of models.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models. See \code{\link{typeSupport}}
+#'for an explanation of the different model types.
+#'@param baselineFilter  an optional string allowing the user to get the support for variables within the subset of models
+#'with a specific baseline function, e.g. \code{typeFilter="gamma"} gets the variable support in the subset of models with a
+#'gamma baseline rate function.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models.
+#'@param includeAsocial logical indicating whether asocial models should be included.
+#'
+#'@return matrix giving the support (total Akaike Weight) for each variable.
 
 variableSupport<-function(nbdaAICtable,typeFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE){
   #Extract the printTable and correct type to include asocial labels
@@ -481,6 +689,37 @@ variableSupport<-function(nbdaAICtable,typeFilter=NULL,baselineFilter=NULL,inclu
 
 }
 
+#'Get the model averaged estimate for each variable from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the model averaged estimate for each variable fitted in a set of models fitted using \code{\link{oadaAICtable}}
+#'or code{\link{tadaAICtable}}.
+#'
+#'By default the model averaged estimate is calculated as the weighted mean of maximum likelihood estimates in each model,
+#'weighted by Akaike weights. This can be changed to a weighted median using the \code{averageType} argument. This could be
+#'useful in cases where a few models (potentially of low weight) have an essentially infinite estimate for a model parameter,
+#'e.g. this can occur for s parameters in an OADA when the diffusion follows the network closely. In such cases a Akaike
+#'weighted median may better reflect the overall findings of the multi-model analysis. Models where a variable does not appear
+#'are treated as models in which the variable has a MLE=0.
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{typeByNetworksSupport}}, \code{\link{networksSupport}}, \code{\link{modelAverageEstimates}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'@param typeFilter  an optional string allowing the user to get the support for variables within a specified type of models.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models. See \code{\link{typeSupport}}
+#'for an explanation of the different model types.
+#'@param netFilter  an optional string allowing the user to get the support for variables from models with a specific
+#'combination of network effects, e.g. \code{netFilter = "0:1:0"} gets the variable support in the subset of models containing
+#'only network 2. See \code{\link{networksSupport}} for an explanation of network combinations.
+#'@param baselineFilter  an optional string allowing the user to get the support for variables within the subset of models
+#'with a specific baseline function, e.g. \code{typeFilter="gamma"} gets the variable support in the subset of models with a
+#'gamma baseline rate function.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models.
+#'@param includeAsocial logical indicating whether asocial models should be included.
+#'@param averageType string indicating whether a "mean" or "median" should be calculated.
+#'
+#'@return numeric vector giving the model averaged estimate for each variable.
 
 modelAverageEstimates<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE,averageType="mean"){
   #Extract the printTable and correct type to include asocial labels
@@ -571,7 +810,46 @@ modelAverageEstimates<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,base
   return(c(MAvs, MAvilv, MAvint))
 }
 
-#To be modified from model averaged estimates function
+#'Get the unconditional standard error for each variable from an oadaAICtable or tadaAICtable
+#'
+#'Calculates the unconditional standard error for each variable fitted in a set of models fitted using \code{\link{oadaAICtable}}
+#'or code{\link{tadaAICtable}}.
+#'
+#'A standard error (SE) from an individual model is conditional on that model. The unconditional standard error (USE) is not
+#'really  "unconditional" but is rather conditional on the whole set of models fitted rather than an individual model. It takes
+#'into account the SEs within each model and the variation in maximum likelihood estimates among models. SEs cannot be always be
+#'calulated in an NBDA, meaning we are left with a situation in which USEs cannot be calculated if 1 or more models have SE=NaN-
+#'even if there are only a few models of low weight for which this is the case. Here we offer a pragmatic
+#'solution to such cases- by replacing the SEs in such models with a model-averaged SE across all models in which the SE can be
+#'calculated, we are able to estimate a USE that is likely to be approximately correct. However, we recommend that this solution
+#'only be used if SEs are absent for only a few models of low weight. In other cases we recommend that the user use confidence intervals
+#'from \code{\link{profLikCI}} conditional on the best model as a measure of uncertainty in parameter estimates.
+#'For s parameters \code{\link{multiModelLowerLimits}} and \code{\link{multiModelPropST}} then provide a means to assess the
+#'robustness of the findings to model selection uncertainty.
+#'
+#'@seealso \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}}, \code{\link{typeSupport}},
+#'\code{\link{typeByNetworksSupport}}, \code{\link{networksSupport}}, \code{\link{modelAverageEstimates}},
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'@param nbdaAICtable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'@param typeFilter  an optional string allowing the user to get the support for variables within a specified type of models.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models. See \code{\link{typeSupport}}
+#'for an explanation of the different model types.
+#'@param netFilter  an optional string allowing the user to get the support for variables from models with a specific
+#'combination of network effects, e.g. \code{netFilter = "0:1:0"} gets the variable support in the subset of models containing
+#'only network 2. See \code{\link{networksSupport}} for an explanation of network combinations.
+#'@param baselineFilter  an optional string allowing the user to get the support for variables within the subset of models
+#'with a specific baseline function, e.g. \code{typeFilter="gamma"} gets the variable support in the subset of models with a
+#'gamma baseline rate function.
+#'e.g. \code{typeFilter="additive"} gets the variable support in the subset of additive models.
+#'@param includeAsocial logical indicating whether asocial models should be included.
+#'@param includeNoILVs logical indicating whether models with no ILVs should be included.
+#'@param nanReplace logical indicating whether standard errors recorded as NaNs should be replaced with the model averaged mean
+#'SE across all models for which the SE for that variable could be calculated.
+#'
+#'@return numeric vector giving the model averaged estimate for each variable.
+
+
 unconditionalStdErr<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baselineFilter=NULL,includeAsocial=TRUE,includeNoILVs=TRUE,nanReplace=FALSE){
   #Extract the printTable and correct type to include asocial labels
   #Extract the printTable and correct type to include asocial labels
@@ -675,6 +953,31 @@ unconditionalStdErr<-function(nbdaAICtable,typeFilter=NULL,netFilter=NULL,baseli
 
   return(c(UCSEs, UCSEilv, UCSEint))
 }
+
+#'Combine two or more oadaAICtables into a single oadaAICtable
+#'
+#'Takes two or more \code{\link{oadaAICtable}} objects, containing different models including the same number of networks and
+#'the same ILVs, and combine them into a single table.
+#'
+#'This function can be used for a variety of practical reasons. If the \code{\link{oadaAICtable}} is interrupted and a partial
+#'oadaAICtable recovered, the remaining models can be run as a separate set and combined with the first partial set. Alternatively,
+#'the user might want to add more models to a set without re-running the entire set, or run different parts of a model set on
+#'different computers to speed up computation time. It is also possible to run model sets with different networks and then combine
+#'them using \code{combineOadaAICtables}, so long as the number of networks matches (though it is possible to have dummy networks
+#'that are constrained to have s=0 in all models, in order to match network number). In such cases a modifier can be added to the
+#'netcombo codes from each oadaAICtable so they can be distinguished by functions such as \code{\link{networksSupport}}. e.g.
+#'if we have two oadaAICtable objects each with the netcombos "1:0","0:1","1:2". If we use
+#'\code{netComboModifier= c("NetworksA:","NetworksB:")} we get netcombos "NetworksA:1:0","NetworksA:0:1","NetworksA:1:2",
+#'"NetworksB:1:0","NetworksB:0:1","NetworksB:1:2" in the resulting oadaAICtable object.
+#'
+#'@seealso \code{\link{oadaAICtable}}
+#'
+#'@param oadaAICtableList a lift of \code{\link{oadaAICtable}} objects to be combined into a single table.
+#'@param aicUse string specifying whether to use "aicc" or "aic".
+#'@param netComboModifier optional character vector with length matching the length of \code{oadaAICtableList} to modify the
+#'netcombo strings recorded from each individual \code{\link{oadaAICtable}} object (see below).
+#'@return An object of class \code{oadaAICtable}.
+
 
 combineOadaAICtables<-function(oadaAICtableList,aicUse="aicc",netComboModifier=rep("",length(oadaAICtableList))){
 
@@ -896,8 +1199,63 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 }
 
 
-#This function allows one to get the lower limits of the C.I. for a chosen s parameter for all models in the set containing that s parameter
-#or within deltaThreshold AIC/AICc units. Works for OADA
+#'Test the sensitivity of the lower limit of an s parameter to model selection uncertainty
+#'
+#'\code{multiModelLowerLimits} returns the lower endpoint of the confidence interval for a specified s parameter for all models
+#'(or just the top models) in a set of models fitted using \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}. It also
+#'returns the estimated proportion of events that occurred by social transmission via the corresponding network, if social
+#'tranmssion occurred at this lowest plausible rate, for each model. Only models including the chosen s parameter are included.
+#'Since this can take a long time, \code{\link{multiModelLowerLimits_multicore}} is available to run the function in parallel
+#'on multiple computer cores.
+#'
+#'The goal of this function is to test if conclusions about social transmission are robust to model selection
+#'uncertainty. Often unconditional standard errors (USEs) \code{\link{unconditionalStdErr}} are used to allow for model selection
+#'uncertainty. However, these are often inappropriate for s parameters in an NBDA, due to the high asymmetry in the profile
+#'likelihood for s parameters. In other words, we can have a lot of information about the lower plausible limit for social
+#'transmission rate, but little information about the upper plausible limit. Standard errors, or USEs only reflect overall levels
+#'of information, so can make it appear like there is little evidence for social transmission when in fact there is a strong
+#'evidence. The solution is to obtain confidence intervals using the profile likelihood method for s parameters (at least) using
+#'\code{\link{unconditionalStdErr}}.
+#'
+#'However, since these confidence intervals are conditional on a single model (usually the
+#'top model by AICc), it makes sense to test whether our conclusions are robust to model selection uncertainty. This function
+#'returns the lower endpoint of the 95\% (by default) confidence interval: if this endpoint is well away from zero for all models,
+#'it indicates that our conclusion is highly robust to model selection uncertainty. If the endpoint is well away from zero for
+#'most models with a sizeable Akaike weight, it indicates that our conclusion is moderately robust to model selection
+#'uncertainty, and so on.
+#'
+#'Since it can be difficult to interpret whether an s parameter is "far from zero" the function also provides the corresponding
+#'propST, the proportion of events estimated to have occurred by social transmission via that network, see
+#'\code{\link{nbdaPropSolveByST}}.
+#'
+#'
+#'@seealso \code{\link{multiModelLowerLimits_multicore}}, \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}},
+#'\code{\link{multiModelPropST}}, \code{\link{plotProfLik}}, \code{\link{nbdaPropSolveByST}}.
+#'
+#'@param aicTable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'@param which numerical giving the s parameter for which the lower confidence interval endpoints are to be calculated.
+#'@param deltaThreshold optional numerical determining the threshold difference in AICc/AIC for a model to be included in the
+#'output. e.g. \code{deltaThreshold=10} includes all models within 10 AICc units of the best model.
+#'@param modelIndex optional numeric vector specifiying which models to include in the output, subject to \code{deltaThreshold}.
+#'@param searchRange optional numeric vector of length two, giving the range within which to search for the lower endpoint. If
+#'omitted, the function searches between 0 and the MLE for s in each model.
+#'@inheritParams oadaAICtable
+#'@inheritParams profLikCI
+#'@inheritParams nbdaPropSolveByST
+#'
+#'@return data.frame giving: \describe{
+#'   \item{model: model number;}{}
+#'   \item{netCombo: the network combination for the model;}{}
+#'   \item{lowerCI: the lower endpoint of the confidence interval for the chosen s parameter;}{}
+#'   \item{propST: the proportion of social transmission events estimated to have occurred by social transmission, corresponding
+#'   to lowerCI;}{}
+#'   \item{deltaAICc: difference in AICc from the best model in the original set;}{}
+#'   \item{akaikeWeight: Akaike weight in the original model set, see \code{\link{oadaAICtable}};}{}
+#'   \item{adjAkWeight: Akaike weight adjusted to the set of models considered here;}{}
+#'   \item{cumulAdjAkWeight: Cumulative adjusted Akaike weight.}{}
+#'   }
+
+
 multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,upperList=NULL,
                                 method="nlminb", gradient=T,iterations=150){
 
@@ -1160,6 +1518,22 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,mode
 
 }
 
+#'Test the sensitivity of the lower limit of an s parameter to model selection uncertainty
+#'
+#'Runs \code{\link{multiModelLowerLimits}} across multiple computer cores. see documentation for
+#'\code{\link{multiModelLowerLimits}} for details.
+#'
+#'@seealso \code{\link{multiModelLowerLimits}}
+#'
+#'@param cores numerical giving the number of computer cores to be used in parallel to fit the models in the set, thus speeding
+#'up the process. By default set to 2. For a standard desktop computer at the time of writing 4-6 is advised.
+#'@inheritParams oadaAICtable
+#'@inheritParams profLikCI
+#'@inheritParams nbdaPropSolveByST
+#'@inheritParams multiModelLowerLimits
+#'
+#'@return data.frame. See \code{\link{multiModelLowerLimits}} for details.
+
 
 multiModelLowerLimits_multicore<-function(which,aicTable,cores=2,deltaThreshold=Inf,conf=0.95,
                                           modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,
@@ -1207,6 +1581,28 @@ multiModelLowerLimits_multicore<-function(which,aicTable,cores=2,deltaThreshold=
     return(output)
 
 }
+
+
+#'Obtain estimates of the proportion of events that occured by social transmission for a set of models
+#'
+#'Takes a set of models fitted by \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}} and calculates the estimated
+#'proportion of events occuring by social transmssion via each network (propST) in each
+#'model using \code{\link{nbdaPropSolveByST}}. This, alongside the \code{\link{multiModelLowerLimits}} function, allows the user to test the robustness of conclusions
+#'about social transmission to model selection uncertainty. The function also calculates a model averaged estimate of propST for
+#'each network.
+#'
+#'
+#'@seealso \code{\link{multiModelLowerLimits}}, \code{\link{oadaAICtable}}, \code{\link{tadaAICtable}},
+#'\code{\link{plotProfLik}}, \code{\link{nbdaPropSolveByST}}, \code{\link{multiModelLowerLimits}}.
+#'
+#'@param aicTable an object of class \code{\link{oadaAICtable}} or \code{\link{tadaAICtable}}.
+#'@param subset optional numerical vector specifying a subset of model numbers to be included.
+#'@param statusBar logical indictaing whether a status/ progress bar should be produced
+#'@return list with the following components:\describe{
+#'   \item{$propSTtable}{propST via each network for each model in the set}
+#'   \item{$modelAverages}{model averaged propST for each network}
+#'   }
+
 
 multiModelPropST<-function(aicTable,subset=NULL,statusBar=T){
   coefficients<-cbind(aicTable@MLEs,aicTable@MLEilv,aicTable@MLEint)
