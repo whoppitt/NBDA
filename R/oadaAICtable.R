@@ -471,7 +471,7 @@ setMethod("initialize",
 #'   \item{@@deltaAICc}{Difference in AICc or AIC from the best model. (ordered by \code{constraintsVectMatrix}).}
 #'   \item{@@RelSupport}{Relative support for the model compared to the best model, calculated as exp(-0.5*deltaAICc).
 #'   (ordered by \code{constraintsVectMatrix}).}
-#'   \item{@@RelSupport}{Akaike weight for the model. (ordered by \code{constraintsVectMatrix}).}
+#'   \item{@@AkaikeWeight}{Akaike weight for the model. (ordered by \code{constraintsVectMatrix}).}
 #'   \item{@@printTable}{data.frame to be output by the print method for \code{oadaAICtable} (see above).}
 #'}
 
@@ -1605,20 +1605,27 @@ multiModelLowerLimits_multicore<-function(which,aicTable,cores=2,deltaThreshold=
 
 
 multiModelPropST<-function(aicTable,subset=NULL,statusBar=T){
-  coefficients<-cbind(aicTable@MLEs,aicTable@MLEilv,aicTable@MLEint)
+
+  if(aicTable@nbdadata[[1]]@multi_ilv[1]=="ILVabsent"){
+    noMultiILVs<-0
+  }else{
+    noMultiILVs<-length(aicTable@nbdadata[[1]]@multi_ilv)
+  }
+  coefficients<-cbind(aicTable@MLEs,aicTable@MLEilv,aicTable@MLEint,matrix(0,ncol=noMultiILVs,nrow=dim(aicTable@MLEs)[1]))
+
   if(is.null(subset)) subset<-1:dim(coefficients)[1]
   output<-NULL
   if(statusBar) pb <- txtProgressBar(min=0, max=length(subset), style=3)
   for(i in subset){
-    output<-rbind(output,oadaPropSolveByST(coefficients[i,],nbdadata =aicTable@nbdadata))
+    output<-rbind(output,nbdaPropSolveByST(coefficients[i,],nbdadata =aicTable@nbdadata))
     if(statusBar)setTxtProgressBar(pb, i)
   }
   if(statusBar)close(pb)
 
-  modelAverages<-apply(output*aicTable@AkaikeWeight,2,sum)
+  modelAverages<-apply(output*aicTable@AkaikeWeight[subset],2,sum)
 
-  propSTtable<-cbind(model=subset,output,weight=aicTable@AkaikeWeight)
-  propSTtable<-output[order(-aicTable@AkaikeWeight),]
+  propSTtable<-cbind(model=subset,output,weight=aicTable@AkaikeWeight[subset])
+  propSTtable<-propSTtable[order(-aicTable@AkaikeWeight[subset]),]
 
   return(list(propSTtable=propSTtable,modelAverages=modelAverages))
 }
