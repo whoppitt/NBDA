@@ -1622,10 +1622,12 @@ multiModelPropST<-function(aicTable,subset=NULL,statusBar=T){
   }
   if(statusBar)close(pb)
 
-  modelAverages<-apply(output*aicTable@AkaikeWeight[subset],2,sum)
+  newAkaikeWeight<-aicTable@AkaikeWeight[subset]/sum(aicTable@AkaikeWeight[subset])
 
-  propSTtable<-cbind(model=subset,output,weight=aicTable@AkaikeWeight[subset])
-  propSTtable<-propSTtable[order(-aicTable@AkaikeWeight[subset]),]
+  modelAverages<-apply(output*newAkaikeWeight,2,sum)
+
+  propSTtable<-cbind(model=subset,output,weight=newAkaikeWeight)
+  propSTtable<-propSTtable[order(-newAkaikeWeight),]
 
   return(list(propSTtable=propSTtable,modelAverages=modelAverages))
 }
