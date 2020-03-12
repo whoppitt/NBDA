@@ -1256,7 +1256,8 @@ oadaAICtable_multiCore<-function(nbdadata,constraintsVectMatrix,cores,typeVect=N
 #'   }
 
 
-multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,upperList=NULL,
+multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,modelIndex=NULL,searchRange=NULL,exclude.innovations=T,innovations=NULL,startValue=NULL,lowerList=NULL,
+                                upperList=NULL,
                                 method="nlminb", gradient=T,iterations=150){
 
   #Cut down to the models specificied in modelIndex (this is mostly included to allow multicore implementation)
@@ -1347,10 +1348,10 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,mode
 
     #Create the necessary constrained data objects
     newConstraintsVect<-constraintsVect
-    newConstraintsVect[constraintsVect==which]<-0
+    newConstraintsVect[which]<-0
     newConstraintsVect[newConstraintsVect>0]<-as.numeric(factor(newConstraintsVect[newConstraintsVect>0]))
     newOffsetVect<-offsetVect
-    newOffsetVect[constraintsVect[which]]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
+    newOffsetVect[which]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
 
     type="social"
     if(sum(newConstraintsVect[1:noSParam])==0){
@@ -1471,10 +1472,10 @@ multiModelLowerLimits<-function(which,aicTable,deltaThreshold=Inf,conf=0.95,mode
 
       #Create the necessary constrained data objects
       newConstraintsVect<-constraintsVect
-      newConstraintsVect[constraintsVect[which]]<-0
+      newConstraintsVect[which]<-0
       newConstraintsVect[newConstraintsVect>0]<-as.numeric(factor(newConstraintsVect[newConstraintsVect>0]))
       newOffsetVect<-offsetVect
-      newOffsetVect[constraintsVect[which]]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
+      newOffsetVect[which]<-newOffsetVect[constraintsVect[which]]+lowerLimitRecord[i]
 
       type="social"
       if(sum(newConstraintsVect[1:noSParam])==0){
