@@ -41,9 +41,10 @@ setMethod("initialize",
               # If there is just one asocial variable matrix for all events and times, then you will have a column matrix for each ILV, the length of the number of individuals
               # If there are more than one asocial variable matrices (i.e. time-varying covariates), then you will have a matrix for each ILV, with rows equal to the number of individuals, and columns equal to the number of time steps
 
-              int_ilv.dim <- dim(eval(as.name(int_ilv[1])))[1] # specify the dimensions of assoc.array
-              multi_ilv.dim <- dim(eval(as.name(multi_ilv[1])))[1] # specify the dimensions of assoc.array
-              random_effects.dim <- dim(eval(as.name(random_effects[1])))[1] # specify the dimensions of assoc.array
+              asoc_ilv.dim <- dim(eval(as.name(asoc_ilv[1])))[1] # specify the dimensions of int.array
+              int_ilv.dim <- dim(eval(as.name(int_ilv[1])))[1] # specify the dimensions of int.array
+              multi_ilv.dim <- dim(eval(as.name(multi_ilv[1])))[1] # specify the dimensions of multi.array
+              random_effects.dim <- dim(eval(as.name(random_effects[1])))[1] # specify the dimensions of random.array
 
 
               # create asoc.array to hold the asocial variables. depending on the treatment required: "timevarying" or "constant", create a one-matrix array or a multi-matrix array
