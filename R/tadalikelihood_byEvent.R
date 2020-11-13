@@ -2,7 +2,7 @@
 
 tadaLikelihood_byevent <- function(parVect, nbdadata,baseline="constant",noHazFunctPars=NULL,hazFunct=NULL,cumHaz=NULL){
 
-  if(is.class(nbdadata)){
+  if(is.list(nbdadata)){
 
     totalLikelihood <- NULL;
 
