@@ -49,6 +49,9 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
     nbdadata@multiILVdata<-as.matrix(nbdadata@multiILVdata[filterVect!=exclude[i],])
     nbdadata@randomEffectdata<-as.matrix(nbdadata@randomEffectdata[filterVect!=exclude[i],])
     nbdadata@offsetCorrection<-as.matrix(nbdadata@offsetCorrection[filterVect!=exclude[i],])
+
+    nbdadata@TADAtime1<-nbdadata@TADAtime1[filterVect!=exclude[i]]
+    nbdadata@TADAtime2<-nbdadata@TADAtime2[filterVect!=exclude[i]]
     filterVect<-filterVect[filterVect!=exclude[i]]
   }
 
@@ -73,11 +76,14 @@ filteredNBDAdata<-function(nbdadata, filter, exclude){
   nbdadata@randomEffectdata<-as.matrix(nbdadata@randomEffectdata[includeIndex,])
   nbdadata@offsetCorrection<-as.matrix(nbdadata@offsetCorrection[includeIndex,])
 
+  nbdadata@TADAtime1<-nbdadata@TADAtime1[includeIndex]
+  nbdadata@TADAtime2<-nbdadata@TADAtime2[includeIndex]
+
+
   dimnames(nbdadata@randomEffectdata)<-dimnames(nbdadataOld@randomEffectdata)
   dimnames(nbdadata@asocILVdata)<-dimnames(nbdadataOld@asocILVdata)
   dimnames(nbdadata@intILVdata)<-dimnames(nbdadataOld@intILVdata)
   dimnames(nbdadata@multiILVdata)<-dimnames(nbdadataOld@multiILVdata)
-
 
 
 return(nbdadata)
