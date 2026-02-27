@@ -1,9 +1,10 @@
-setClass("nbdaData", representation(label="vector", idname="vector", assMatrix="array", asoc_ilv="vector", int_ilv="vector",multi_ilv="vector",random_effects="vector",orderAcq="vector", timeAcq="vector",endTime="numeric",updateTimes="vector", ties="vector", trueTies="list", demons="vector", weights="vector",statusMatrix="matrix", availabilityMatrix="matrix",presenceMatrix="matrix", event.id="vector", id="vector", time1="vector", time2="vector",TADAtime1="vector", TADAtime2="vector", status="vector", presentInDiffusion ="vector", assMatrixIndex="vector",asocialTreatment="character", stMetric="matrix", asocILVdata="matrix",intILVdata="matrix",multiILVdata="matrix",offsetCorrection="matrix",randomEffectdata="matrix"));
+setClass("nbdaData", representation(label="vector", idname="vector", assMatrix="array", asoc_ilv="vector", int_ilv="vector",multi_ilv="vector",random_effects="vector",orderAcq="vector", timeAcq="vector",endTime="numeric",updateTimes="vector", ties="vector", trueTies="list", demons="vector", weights="vector",statusMatrix="matrix", availabilityMatrix="matrix",presenceMatrix="matrix", event.id="vector", id="vector", time1="vector", time2="vector",TADAtime1="vector", TADAtime2="vector", status="vector", presentInDiffusion ="vector", assMatrixIndex="vector",asocialTreatment="character", stMetric="matrix", asocILVdata="matrix",intILVdata="matrix",multiILVdata="matrix",offsetCorrection="matrix",randomEffectdata="matrix", 
+                                    asoc_as_matrix="logical", asoc_ilv.arrayIn="array", int_ilv.arrayIn="array", multi_ilv.arrayIn="array"));
 
 setMethod("initialize",
           signature(.Object = "nbdaData"),
           function (.Object, label, idname=NULL, assMatrix, asoc_ilv="ILVabsent", int_ilv="ILVabsent", multi_ilv="ILVabsent",random_effects="REabsent",orderAcq, timeAcq, endTime, ties=NULL, trueTies=list(NULL), id=NA, event.id=NA, demons=NULL, updateTimes=NULL, presenceMatrix=NULL,
-                    assMatrixIndex= rep(1,length(orderAcq)),weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL, ...)
+                    assMatrixIndex= rep(1,length(orderAcq)),weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL, asoc_as_matrix=FALSE, asoc_ilv.arrayIn=NULL, int_ilv.arrayIn=NULL, multi_ilv.arrayIn=NULL, ...)
           {
 
             if(is.na(timeAcq[1])){
@@ -39,11 +40,18 @@ setMethod("initialize",
 
               # If there is just one asocial variable matrix for all events and times, then you will have a column matrix for each ILV, the length of the number of individuals
               # If there are more than one asocial variable matrices (i.e. time-varying covariates), then you will have a matrix for each ILV, with rows equal to the number of individuals, and columns equal to the number of acquisition events (because in OADA we are constraining this to be the case: ILVs can only change at the same time as acquisition events occur otherwise you can't obtain a marginal likelihood, Will says, only a partial likelihood)
-              asoc_ilv.dim <- dim(eval(as.name(asoc_ilv[1])))[1] # specify the dimensions of assoc.array
-              int_ilv.dim <- dim(eval(as.name(int_ilv[1])))[1] # specify the dimensions of assoc.array
-              multi_ilv.dim <- dim(eval(as.name(multi_ilv[1])))[1] # specify the dimensions of assoc.array
-              random_effects.dim <- dim(eval(as.name(random_effects[1])))[1] # specify the dimensions of assoc.array
-
+              
+              if(asoc_as_matrix){
+                asoc_ilv.dim <- dim(asoc_ilv.arrayIn)[3] # specify the dimensions of assoc.array
+                int_ilv.dim <- dim(int_ilv.arrayIn)[3] # specify the dimensions of assoc.array
+                multi_ilv.dim <- dim(multi_ilv.arrayIn)[3] # specify the dimensions of assoc.array
+              }else{
+                asoc_ilv.dim <- dim(eval(as.name(asoc_ilv[1])))[1] # specify the dimensions of assoc.array
+                int_ilv.dim <- dim(eval(as.name(int_ilv[1])))[1] # specify the dimensions of assoc.array
+                multi_ilv.dim <- dim(eval(as.name(multi_ilv[1])))[1] # specify the dimensions of assoc.array
+              }
+                random_effects.dim <- dim(eval(as.name(random_effects[1])))[1] # specify the dimensions of assoc.array
+        
 
               # create asoc.array to hold the asocial variables. depending on the treatment required: "timevarying" or "constant", create a one-matrix array or a multi-matrix array
               if (asocialTreatment=="constant"){
@@ -123,18 +131,33 @@ setMethod("initialize",
 
               } # closes else
 
-              for(a in 1:length(asoc_ilv)){ # Loop through asocial variables - a loop
-                asoc_ilv.array[,,a] <- eval(as.name(asoc_ilv[a])) # evaluate each one in turn
-              }
-              for(a in 1:length(int_ilv)){ # Loop through asocial variables - a loop
-                int_ilv.array[,,a] <- eval(as.name(int_ilv[a])) # evaluate each one in turn
-              }
-              for(a in 1:length(multi_ilv)){ # Loop through asocial variables - a loop
-                multi_ilv.array[,,a] <- eval(as.name(multi_ilv[a])) # evaluate each one in turn
-              }
+              if(asoc_as_matrix){
+                  asoc_ilv.array <- asoc_ilv.arrayIn
+                  int_ilv.array <- int_ilv.arrayIn
+                  multi_ilv.array <- multi_ilv.arrayIn
+                  
+                  asoc_ilv<-dimnames(asoc_ilv.arrayIn)[3]
+                  int_ilv<-dimnames(int_ilv.arrayIn)[3]
+                  multi_ilv<-dimnames(multi_ilv.arrayIn)[3]
+                  
+              }else{
+                for(a in 1:length(asoc_ilv)){ # Loop through asocial variables - a loop
+                  asoc_ilv.array[,,a] <- eval(as.name(asoc_ilv[a])) # evaluate each one in turn
+                }
+                for(a in 1:length(int_ilv)){ # Loop through asocial variables - a loop
+                  int_ilv.array[,,a] <- eval(as.name(int_ilv[a])) # evaluate each one in turn
+                }
+                for(a in 1:length(multi_ilv)){ # Loop through asocial variables - a loop
+                  multi_ilv.array[,,a] <- eval(as.name(multi_ilv[a])) # evaluate each one in turn
+                }
+              }  
               for(a in 1:length(random_effects)){ # Loop through asocial variables - a loop
                 random_effects.array[,,a] <- eval(as.name(random_effects[a])) # evaluate each one in turn
               }
+              
+
+              
+
 
               if(nAcq!=0){
                 for (i in 1:nAcq){ # Loop through acquisition events - i loop
@@ -783,7 +806,8 @@ setMethod("initialize",
 #'functions.
 
 
-nbdaData <- function(label, idname=NULL, assMatrix, asoc=NULL, asoc_ilv="ILVabsent",int_ilv="ILVabsent",multi_ilv="ILVabsent",random_effects="REabsent", orderAcq, timeAcq=NA, endTime=max(timeAcq)+1,ties=NULL, trueTies=list(NULL), updateTimes=NULL, demons=NULL, presenceMatrix =NULL,assMatrixIndex= rep(1,length(orderAcq)), weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL){
+nbdaData <- function(label, idname=NULL, assMatrix, asoc=NULL, asoc_ilv="ILVabsent",int_ilv="ILVabsent",multi_ilv="ILVabsent",random_effects="REabsent", orderAcq, timeAcq=NA, endTime=max(timeAcq)+1,ties=NULL, trueTies=list(NULL), updateTimes=NULL, demons=NULL, presenceMatrix =NULL,assMatrixIndex= rep(1,length(orderAcq)), weights=rep(1, dim(assMatrix)[1]), asocialTreatment="constant",offsetCorrection=NULL,
+                     asoc_as_matrix=FALSE, asoc_ilv.arrayIn=NULL, int_ilv.arrayIn=NULL, multi_ilv.arrayIn=NULL){
 
   # For backwards compatibility, allow the asoc argument and assume it refers to asoc_ilv
 
